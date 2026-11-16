@@ -7,7 +7,11 @@ import android.os.Build
 import android.view.Gravity
 import android.view.WindowManager
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -107,7 +111,9 @@ object GlassIslandOverlay {
     private var wm: WindowManager? = null
     private var params: WindowManager.LayoutParams? = null
     private var current by mutableStateOf<IslandItem?>(null)
-    private var expanded by mutableStateOf(false)
+    private var expanded by mutableStateOf(true)
+    private var visible by mutableStateOf(false)
+    private val reveal = Animatable(0f)
     private var hideJob: Job? = null
     private var cutoutW by mutableStateOf(0.dp)
     private var cutoutH by mutableStateOf(0.dp)
@@ -117,9 +123,9 @@ object GlassIslandOverlay {
             if (!canDraw(ctx)) return@launch
             val host: Context = IslandAccessibilityService.instance ?: return@launch
             ensureWindow(host)
-            // same notification updating: keep expanded state
-            if (current?.key != item.key) expanded = false
             current = item
+            expanded = true
+            visible = true
             scheduleHide()
         }
     }
@@ -131,15 +137,20 @@ object GlassIslandOverlay {
     private fun scheduleHide() {
         hideJob?.cancel()
         hideJob = scope.launch {
-            delay(if (expanded) 12_000 else 5_500)
+            delay(6_500)
             hide()
         }
     }
 
+    /** Starts the exit animation (card melts back into the camera); the window is removed when it finishes. */
     private fun hide() {
         hideJob?.cancel()
+        if (view == null) { current = null; return }
+        visible = false
+    }
+
+    private fun finish() {
         current = null
-        expanded = false
         removeWindow()
     }
 
@@ -150,13 +161,15 @@ object GlassIslandOverlay {
         val density = ctx.resources.displayMetrics.density
         val metrics = windowManager.currentWindowMetrics
         val screenW = metrics.bounds.width()
-        var shiftPx = 0
+        var winTopPx = 0
+        val marginPx = (10 * density).toInt()
         val cutout = metrics.windowInsets.displayCutout
         val top = cutout?.boundingRectTop
         if (top != null && !top.isEmpty) {
             cutoutW = (top.width() / density).dp
-            cutoutH = (top.bottom / density).dp
-            shiftPx = top.centerX() - screenW / 2
+            // window starts 2dp above the camera so the card hugs it
+            winTopPx = maxOf(0, top.top - (2 * density).toInt())
+            cutoutH = ((top.bottom - winTopPx) / density).dp
         } else {
             // no notch reported: reserve the status-bar sized strip so content never sits under a punch-hole either
             cutoutW = 0.dp
@@ -164,7 +177,7 @@ object GlassIslandOverlay {
         }
 
         val lp = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            screenW - 2 * marginPx,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -175,8 +188,8 @@ object GlassIslandOverlay {
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            x = shiftPx
-            y = 0
+            x = 0
+            y = winTopPx
             if (Build.VERSION.SDK_INT >= 28) layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
             title = "HyperBridgeGlassIsland"
         }
@@ -202,6 +215,8 @@ object GlassIslandOverlay {
         try { wm?.removeView(v) } catch (_: Exception) {}
         view = null
         owner?.destroy(); owner = null
+        visible = false
+        scope.launch { reveal.snapTo(0f) }
     }
 
     // ------------------------------------------------------------------------------------------------ UI
@@ -210,16 +225,32 @@ object GlassIslandOverlay {
     private fun IslandContent(item: IslandItem) {
         val big = expanded
         val ctxW = cutoutW
-        val topPad = if (cutoutH > 0.dp) cutoutH else 24.dp
+        val topPad = if (cutoutH > 0.dp) cutoutH else 18.dp
         val shape = RoundedCornerShape(if (big) 34.dp else 26.dp)
+        val vis = visible
+        LaunchedEffect(vis, item.key) {
+            if (vis) {
+                reveal.animateTo(1f, spring(dampingRatio = 0.72f, stiffness = 260f))
+            } else {
+                reveal.animateTo(0f, tween(620, easing = CubicBezierEasing(0.5f, 0f, 0.2f, 1f)))
+                finish()
+            }
+        }
         var drag by remember(item.key) { mutableStateOf(0f) }
         val click = remember { MutableInteractionSource() }
 
         Box(
             Modifier
-                .graphicsLayer { translationY = drag.coerceAtMost(0f) }
-                .padding(horizontal = 6.dp)
-                .widthIn(min = if (big) 340.dp else 250.dp, max = if (big) 392.dp else 360.dp)
+                .graphicsLayer {
+                    translationY = drag.coerceAtMost(0f)
+                    val r = reveal.value
+                    // grows out of / melts back into the camera at the top centre
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
+                    scaleX = 0.14f + 0.86f * r
+                    scaleY = 0.07f + 0.93f * r
+                    alpha = (r * 3f).coerceIn(0f, 1f)
+                }
+                .fillMaxWidth()
                 .animateContentSize(spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow))
                 .shadow(18.dp, shape, ambientColor = Color.Black.copy(alpha = 0.35f), spotColor = Color.Black.copy(alpha = 0.5f))
                 .clip(shape)
@@ -231,10 +262,8 @@ object GlassIslandOverlay {
                     )
                 }
                 .clickable(interactionSource = click, indication = null) {
-                    if (!expanded) { expanded = true; scheduleHide() } else {
-                        try { item.contentIntent?.send() } catch (_: Exception) {}
-                        hide()
-                    }
+                    try { item.contentIntent?.send() } catch (_: Exception) {}
+                    hide()
                 },
         ) {
             // glass sheen + rim
@@ -243,7 +272,9 @@ object GlassIslandOverlay {
             }
             Box(Modifier.matchParentSize().border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.45f), Color.White.copy(alpha = 0.06f), Color.White.copy(alpha = 0.22f))), shape))
 
-            if (!big) SmallRow(item, topPad, ctxW) else LargeCard(item, topPad)
+            Box(Modifier.graphicsLayer { alpha = ((reveal.value - 0.45f) * 2.2f).coerceIn(0f, 1f) }) {
+                if (!big) SmallRow(item, topPad, ctxW) else LargeCard(item, topPad)
+            }
         }
     }
 
@@ -270,7 +301,7 @@ object GlassIslandOverlay {
     @Composable
     private fun LargeCard(item: IslandItem, topPad: Dp) {
         Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 16.dp)) {
-            Spacer(Modifier.height(maxOf(topPad, 24.dp) + 6.dp)) // camera zone
+            Spacer(Modifier.height(topPad + 8.dp)) // camera zone
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AppIcon(item.icon, 34.dp)
                 Spacer(Modifier.width(10.dp))
