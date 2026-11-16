@@ -6,6 +6,14 @@ A native Android browser with a Safari-style mobile toolbar, Pearl Mist glass st
 
 Install `AuraBrowser-1.2.apk` on Android 8.0 or newer. Allow your download app to install APKs if Android asks. This is a development-signed build. It installs separately from the former Prism application because its package ID is now `com.gr4nt.aurabrowser`.
 
+## New in 1.3
+
+- Uploads: file pickers no longer hide valid files when a site lists extensions with no known MIME type (for example `.aab` for Play Console). Multiple-file selection is kept.
+- Ad and redirect blocking: page-initiated top-level navigations without a tap to blocklisted ad or tracker hosts are stopped, and the browser shows a notice.
+- Mobile menus and sheets are centered and narrower instead of full-width bottom sheets.
+- Release build: `build.py` also produces a signed Android App Bundle (`AuraBrowser-1.3.aab`) when `BUNDLETOOL_JAR` is set. Version code 4.
+- Not yet verified on a device; tablet and desktop layouts and the downloader are unchanged in this release.
+
 ## New in 1.2
 
 The app is now named Aura Browser and uses application ID `com.gr4nt.aurabrowser` with provider authority `com.gr4nt.aurabrowser.files`. This package installs separately from the former Prism package; it cannot automatically inherit that app's private tabs, cookies or download metadata.

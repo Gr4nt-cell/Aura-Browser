@@ -563,8 +563,10 @@ public class BrowserActivity extends Activity {
     if (chromeSheet != null) chromeSheet.dismiss();
     chromeSheet = dialog;
     FrameLayout margin = new FrameLayout(this);
-    FrameLayout.LayoutParams pp = new FrameLayout.LayoutParams(-1, -2);
-    pp.setMargins(dp(10), dp(8), dp(10), dp(12));
+    int sheetWidth = dp(Math.min(getResources().getConfiguration().screenWidthDp - 48, 340));
+    FrameLayout.LayoutParams pp =
+        new FrameLayout.LayoutParams(sheetWidth, -2, Gravity.CENTER_HORIZONTAL);
+    pp.setMargins(0, dp(8), 0, dp(12));
     Bitmap sheetSample = captureGlassBackdrop();
     Glass.Capsule frosted = new Glass.Capsule(this, dark, dp(30));
     frosted.setSample(sheetSample);
@@ -582,7 +584,7 @@ public class BrowserActivity extends Activity {
     win.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
     win.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
     win.setDimAmount(.16f);
-    win.setGravity(Gravity.BOTTOM);
+    win.setGravity(Gravity.CENTER);
     dialog.setOnDismissListener(
         d -> {
           if (chromeSheet == dialog) chromeSheet = null;
@@ -590,11 +592,11 @@ public class BrowserActivity extends Activity {
           if (sheetSample != null && !sheetSample.isRecycled()) sheetSample.recycle();
         });
     dialog.show();
-    win.setLayout(-1, -2);
+    win.setLayout(sheetWidth, -2);
     scroll.post(
         () -> {
-          int max = dp((int) (getResources().getConfiguration().screenHeightDp * .78f));
-          if (scroll.getHeight() > max) win.setLayout(-1, max);
+          int max = dp((int) (getResources().getConfiguration().screenHeightDp * .62f));
+          if (scroll.getHeight() > max) win.setLayout(sheetWidth, max);
         });
     panel.setTranslationY(dp(28));
     panel.setAlpha(0);
@@ -1014,7 +1016,19 @@ public class BrowserActivity extends Activity {
           public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest r) {
             String url = r.getUrl().toString();
             String scheme = n(r.getUrl().getScheme());
-            if (scheme.equals("http") || scheme.equals("https")) return false;
+            if (scheme.equals("http") || scheme.equals("https")) {
+              // Page-initiated top-level jumps without a tap to known ad/tracker hosts are
+              // usually redirect or pop-under ads. Taps (hasGesture) are never blocked here.
+              if (r.isForMainFrame()
+                  && !r.hasGesture()
+                  && !r.isRedirect()
+                  && blocker.enabled
+                  && blocker.blocks(url, t.url)) {
+                handler.post(() -> toast("Blocked an ad redirect"));
+                return true;
+              }
+              return false;
+            }
             if (r.isForMainFrame() && r.hasGesture()) openExternal(url);
             return true;
           }
@@ -1620,17 +1634,26 @@ public class BrowserActivity extends Activity {
       i.addCategory(Intent.CATEGORY_OPENABLE);
       i.setType("*/*");
       ArrayList<String> types = new ArrayList<>();
+      // If any accepted entry cannot be mapped to a MIME type (for example .aab, .apk or .ipa),
+      // the filter would hide files the site asked for. Fall back to all files in that case.
+      boolean restrict = fileParams != null;
       if (fileParams != null)
         for (String type : fileParams.getAcceptTypes()) {
           if (type == null) continue;
           for (String val : type.split(",")) {
-            val = val.trim();
-            if (val.startsWith(".")) {
+            val = val.trim().toLowerCase(Locale.ROOT);
+            if (val.isEmpty()) continue;
+            if (val.equals("*/*")) {
+              restrict = false;
+            } else if (val.startsWith(".")) {
               String m = MimeTypeMap.getSingleton().getMimeTypeFromExtension(val.substring(1));
               if (m != null) types.add(m);
+              else restrict = false;
             } else if (val.contains("/")) types.add(val);
+            else restrict = false;
           }
         }
+      if (!restrict) types.clear();
       if (!types.isEmpty()) {
         if (types.size() == 1) i.setType(types.get(0));
         else i.putExtra(Intent.EXTRA_MIME_TYPES, types.toArray(new String[0]));

@@ -1,4 +1,4 @@
-name: Build signed Aura Browser APK
+name: Build signed Aura Browser APK and AAB
 
 on:
   workflow_dispatch:
@@ -45,16 +45,26 @@ jobs:
           mkdir -p "$RUNNER_TEMP/aura-tests"
           javac --add-modules jdk.httpserver -d "$RUNNER_TEMP/aura-tests" app/src/main/java/com/gr4nt/aurabrowser/DownloadCore.java tests/DownloadCoreTest.java
           java --add-modules jdk.httpserver -cp "$RUNNER_TEMP/aura-tests" DownloadCoreTest
-      - name: Build and sign APK
+      - name: Download bundletool
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/bundletool-all.jar" \
+            https://github.com/google/bundletool/releases/download/1.18.1/bundletool-all-1.18.1.jar
+      - name: Build, sign APK and AAB
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          BUNDLETOOL_JAR: ${{ runner.temp }}/bundletool-all.jar
         run: python3 build.py
       - uses: actions/upload-artifact@v4
         with:
-          name: AuraBrowser-1.2-apk
-          path: build/AuraBrowser-1.2.apk
+          name: AuraBrowser-1.3-apk
+          path: build/AuraBrowser-1.3.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AuraBrowser-1.3-aab
+          path: build/AuraBrowser-1.3.aab
           if-no-files-found: error
       - name: Remove temporary signing key
         if: always()
