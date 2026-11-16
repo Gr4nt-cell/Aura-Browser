@@ -1,0 +1,137 @@
+H		api-secure.solvemedia.com/
+H		api.aws.parking.godaddy.com/v1/parking/landers/
+H		api.ipstack.com/check?access_key=
+H		api.solvemedia.com/
+H		app.detrack.com/api/v2/tracking
+H		assets.shiropro-re.net/html/image/ad5.png
+H		bigappboi.com/captchalocker/js/popup.js.php
+H		bigappboi.com/cp/js/captcha.js.php
+H		bongacash.com/js/videojs/video.js
+H		captcha.px-cdn.net/
+H		cdn.ex.co/content/
+H		cdn.questionpro.com/
+H		coral.coralproject.net/
+H		data.bilibili.com/
+H		edgecastcdn.net/
+H		ezodn.com/cmp/v2/cmp.js
+H		ezodn.com/detroitchicago/
+H		ezodn.com/detroitchicago/consentsettings.js
+H		ezodn.com/v2/cmp.js
+H		freebcc.org/assets/img/ad_
+H		google.com/recaptcha/
+H		gvl.ezodn.com/gvlcache/gvl.json
+H		hcaptcha.com/captcha/
+H		kcjervis.github.io/jervis/static/media/src/images/ships/banner/
+H		lostpod.space/static/streaming-playlists/
+H		mcs-va.tiktok.com/v1/user/webid
+H		mixdrop.co/
+H		movie.momo-net.com/_embed/video.php
+H		myreadingmanga.disqus.com/
+H		perimeterx.net/api/v2/collector/ocaptcha
+H		phoenixkiller.com/assets/js/ad-provider.js
+H		play2.qbrick.com/framework/modules/analytics/analytics.min.js
+H		poki-gdn.com/
+H		promo.com/shopify/shopify-store-script.js
+H		promo.local/shopify/shopify-store-script.js
+H		s2.coinmarketcap.com/
+H		sagicheck.jp/jp/check/
+H		scylla.wgplayer.com/f_webp/
+H		spankmasters.com/embedplayer.aspx
+H		ssl.kaptcha.com/collect/sdk
+H		static.goolive.de/media/static/images/smileys/ad.gif
+H		support.microsoft.com/supportformslib/oneds/dist/ms.analytics-web-
+H		tamin.ir/content/ads/
+H		tracker.btorrent.xyz/
+H		trc.taboola.com/indiatoday
+H		twimg.twitter.map.fastly.net/
+H		www.pussyspace.com/ajax/contact/exo-logo.png
+H		www.pussyspace.com/class/captcha/arrow.png
+H		www.pussyspace.com/class/captcha/captcha.php
+H		www.pussyspace.com/favicon.ico
+H		www.pussyspace.com/player/loading.gif
+H		www.pussyspace.com/player/playbtn.png
+H		www.pussyspace.com/style/03/img/bg.png
+H		www.pussyspace.com/style/03/img/dropmenudownarrow.png
+H		www.pussyspace.com/style/03/img/navbg.hover.png
+H		www.pussyspace.com/style/03/img/navbg.png
+H		www.pussyspace.com/style/03/img/pinkbg.gif
+H		www.pussyspace.com/style/03/img/speed-dials.png
+H		www.pussyspace.com/style/03/img/x-sprite.png
+H		www.pussyspace.com/style/05/img/jhsdssd221.svg
+H		www.pussyspace.com/style/10/img/logo.png
+H		www.pussyspace.com/style/10/img/logo_mobile.png
+H		www.pussyspace.com/style/img/abuse.email.png#
+H		www.pussyspace.com/style/img/navbg.hover.png
+H		www.pussyspace.com/style/webcam.jpg
+H		www.pussyspace.com/upload/no_img.jpg
+H		www.pussyspace.net/ajax/contact/exo-logo.png
+H		www.pussyspace.net/class/captcha/arrow.png
+H		www.pussyspace.net/class/captcha/captcha.php
+H		www.pussyspace.net/favicon.ico
+H		www.pussyspace.net/player/loading.gif
+H		www.pussyspace.net/player/playbtn.png
+H		www.pussyspace.net/style/03/img/bg.png
+H		www.pussyspace.net/style/03/img/dropmenudownarrow.png
+H		www.pussyspace.net/style/03/img/navbg.hover.png
+H		www.pussyspace.net/style/03/img/navbg.png
+H		www.pussyspace.net/style/03/img/pinkbg.gif
+H		www.pussyspace.net/style/03/img/speed-dials.png
+H		www.pussyspace.net/style/03/img/x-sprite.png
+H		www.pussyspace.net/style/10/img/logo.png
+H		www.pussyspace.net/style/10/img/logo_mobile.png
+H		www.pussyspace.net/style/img/abuse.email.png#
+H		www.pussyspace.net/style/img/navbg.hover.png
+H		www.pussyspace.net/style/webcam.jpg
+H		www.pussyspace.net/upload/no_img.jpg
+H		x.kinja-static.com/assets/packaged-js/trackers
+H		youtube-ui.l.google.com/
+H	t	capi.connatix.com/core/pls
+H	t	cdnjs.cloudflare.com/ajax/libs/blockadblock/
+H	t	challenges.cloudflare.com/turnstile/
+H	t	googleapis.com/xxx-mightyparty.appspot.com/
+H	t	img.connatix.com/pid-
+H	t	powr.io/powr.js
+H	t	t.eloqua.com/e/
+H	t	vid.connatix.com/
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?ad\.admitad\.com/g/.*\&ulp=http
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?ad\.doubleclick\.net/clk.*travel.*\&destinationURL=
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?ad\.doubleclick\.net/ddm/trackclk/.*https://www\.unieuro\.it
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?api\.unidadeditorial\.es/sports/v1/events/.*
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?assets\.connatix\.com/Elements/.*\-player\-
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?cbs\.wondershare\.com/.*pid=
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?cdn\.optimizely\.com/.*\.json
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?citi\.com/cards/.*/tracking\.js
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?click\.allkeyshop\.com/.*\&source=allkeyshop\.com
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?click\.redditmail\.com[^\w.%-].*ref_source=email
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?cpt\-static\.gannettdigital\.com/.*\-comscore
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?downdetector\.com/.*/javascript/adscript\.js
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?eastprodcdn\.azureedge\.net/bundles/.*velaro
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?fls\-na\.amazon\..*/1/batch/1/OP/
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?fmovies\.to/subtitles/.*
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?googleads\.g\.doubleclick\.net/ads/preferences/.*/opt.*\?continue
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?gstatic\..*/recaptcha/
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?gstatic\.com/.*/adwords/partnerspublic/partners_public_.*/partners/main\.dart\.js
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?hcaptcha\.com[^\w.%-].*/api\.js
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?ipapi\.co[^\w.%-].*json
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?maxcheaters\.com/uploads2/country/.*\.gif
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?mypearson\.com[^\w.%-].*/ga\.min\.js
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?onelink\.me/.*://app/
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?promo\.com/shopify\-backend/.*/user\-videos/public/video\-urls
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?pxchk\.net/api/.*/collector/ocaptcha
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?rdstation\.com\.br[^\w.%-].*api/
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?recipes\.timesofindia\.com/.*ads\.cms
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?soapps\.net[^\w.%-].*live/loader/counter\.js
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?streamplay\.to[^\w.%-].*/manifest\.mpd
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?streamplay\.to[^\w.%-].*\.m4s
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?streamplay\.to[^\w.%-].*\.mp4
+R		^[a-z][a-z0-9+.-]*://([^/?#]*\.)?svc\.dynamics\.com[^\w.%-].*t/
+R	t	^[a-z][a-z0-9+.-]*://([^/?#]*\.)?api\.aws\.parking\.godaddy\.com/.*/domains/.*
+R	t	^[a-z][a-z0-9+.-]*://([^/?#]*\.)?cds\.connatix\.com/.*/elLoader\.
+R	t	^[a-z][a-z0-9+.-]*://([^/?#]*\.)?cds\.connatix\.com/.*/hls
+R	t	^[a-z][a-z0-9+.-]*://([^/?#]*\.)?cds\.connatix\.com/.*/player\.hls\.
+R	t	^[a-z][a-z0-9+.-]*://([^/?#]*\.)?cds\.connatix\.com/.*/player\.lit\.
+R	t	^[a-z][a-z0-9+.-]*://([^/?#]*\.)?cds\.connatix\.com/.*/player\.renderer\.
+R	t	^[a-z][a-z0-9+.-]*://([^/?#]*\.)?cds\.connatix\.com/p/.*/elements\.ui\.
+R	t	^[a-z][a-z0-9+.-]*://([^/?#]*\.)?connatix\.com/.*\.css
+R	t	^[a-z][a-z0-9+.-]*://([^/?#]*\.)?img\.connatix\.com/.*\.jpg
+S		https://api-secure.solvemedia.com
