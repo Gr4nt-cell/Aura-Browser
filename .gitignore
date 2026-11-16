@@ -1,0 +1,15 @@
+build/
+.gradle/
+local.properties
+*.iml
+signing/
+*.jks
+*.keystore
+*.p12
+*.base64.txt
+signing-secrets.json
+signing.properties
+.env
+.env.*
+!*.env.example
+__pycache__/
