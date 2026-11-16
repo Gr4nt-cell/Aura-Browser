@@ -2,6 +2,8 @@ name: Build signed Aura Browser APK
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -10,19 +12,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/aura-browser.keystore
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
-      - name: Install Android SDK packages
-        uses: android-actions/setup-android@v4
-        with:
-          packages: 'platforms;android-36 build-tools;36.0.0'
-          log-accepted-android-sdk-licenses: 'false'
       - name: Restore signing keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -36,10 +31,23 @@ jobs:
           names=('KEYSTORE_BASE64','KEYSTORE_PASSWORD','KEY_ALIAS','KEY_PASSWORD')
           missing=[name for name in names if not os.environ.get(name)]
           if missing: raise SystemExit('Missing Actions secrets: '+', '.join(missing))
-          target=Path(os.environ['ANDROID_KEYSTORE_PATH'])
+          target=Path(os.environ['RUNNER_TEMP'])/'aura-browser.keystore'
           target.write_bytes(base64.b64decode(''.join(os.environ['KEYSTORE_BASE64'].split()),validate=True))
           target.chmod(0o600)
+          with open(os.environ['GITHUB_ENV'],'a') as output:
+              output.write('ANDROID_KEYSTORE_PATH='+str(target)+'\n')
+          import hashlib, subprocess
+          cert=subprocess.check_output(['keytool','-exportcert','-keystore',str(target),'-storepass:env','KEYSTORE_PASSWORD','-alias',os.environ['KEY_ALIAS']])
+          expected='df2ce371a9273de278738f149ab8393792d6294cfb2e49d495cac02f2eaecdf8'
+          if hashlib.sha256(cert).hexdigest()!=expected:
+              raise SystemExit('Signing certificate does not match the delivered Aura Browser APK')
+          print('All four signing secrets are present; Base64, keystore password, alias and certificate verified.')
           PYCODE
+      - name: Install Android SDK packages
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platforms;android-36 build-tools;36.0.0'
+          log-accepted-android-sdk-licenses: 'false'
       - name: Test persistent parallel downloader
         run: |
           mkdir -p "$RUNNER_TEMP/aura-tests"
