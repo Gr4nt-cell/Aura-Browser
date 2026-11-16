@@ -816,4 +816,10 @@
     <string name="root_workaround_desc">Briefly cuts the Xiaomi push service off the network while posting, so HyperOS does not intercept the island. Needs root.</string>
     <string name="featured_notifications_root_alternative">Use root instead</string>
     <string name="featured_notifications_root_desc">With root access HyperBridge can work around this itself. Grant root and turn on the Xiaomi push workaround under Settings > Engine.</string>
+    <string name="island_layout_title">Island size and position</string>
+    <string name="island_margin_left">Left edge distance</string>
+    <string name="island_margin_right">Right edge distance</string>
+    <string name="island_top_gap">Gap above the camera</string>
+    <string name="island_bottom_pad">Space under the content</string>
+    <string name="island_preview">Preview island</string>
 </resources>

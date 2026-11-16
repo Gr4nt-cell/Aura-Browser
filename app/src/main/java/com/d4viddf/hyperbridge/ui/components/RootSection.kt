@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +44,23 @@ private fun SwitchRow(title: String, desc: String, checked: Boolean, enabled: Bo
     }
 }
 
+@Composable
+private fun DpSlider(label: String, value: Int, range: IntRange, onChange: (Int) -> Unit) {
+    var local by androidx.compose.runtime.remember(value) { androidx.compose.runtime.mutableFloatStateOf(value.toFloat()) }
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text("${local.toInt()} dp", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+        }
+        androidx.compose.material3.Slider(
+            value = local,
+            onValueChange = { local = it },
+            onValueChangeFinished = { onChange(local.toInt()) },
+            valueRange = range.first.toFloat()..range.last.toFloat(),
+        )
+    }
+}
+
 /** Root access, camera-wrapping island and notification interception controls. Replaces the old Shizuku section. */
 @Composable
 fun RootAndIslandSection(prefs: AppPreferences, showXmsfWorkaround: Boolean = true) {
@@ -54,6 +72,10 @@ fun RootAndIslandSection(prefs: AppPreferences, showXmsfWorkaround: Boolean = tr
     val interceptAll by prefs.interceptAllApps.collectAsState(initial = true)
     val suppress by prefs.suppressNativePopups.collectAsState(initial = false)
     val a11yReady = IslandAccessibilityService.instance != null
+    val mLeft by prefs.islandMarginLeft.collectAsState(initial = 10)
+    val mRight by prefs.islandMarginRight.collectAsState(initial = 10)
+    val topGap by prefs.islandTopGap.collectAsState(initial = 2)
+    val bottomPad by prefs.islandBottomPad.collectAsState(initial = 16)
 
     Column(Modifier.fillMaxWidth()) {
         // --- root status
@@ -83,6 +105,26 @@ fun RootAndIslandSection(prefs: AppPreferences, showXmsfWorkaround: Boolean = tr
                     scope.launch(Dispatchers.IO) { RootManager.enableAccessibilityService(IslandAccessibilityService.COMPONENT) }
                 }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.island_enable_with_root)) }
             }
+        }
+        if (islandOn) {
+            Text(stringResource(R.string.island_layout_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            DpSlider(stringResource(R.string.island_margin_left), mLeft, 0..60) { scope.launch { prefs.setIslandMarginLeft(it) } }
+            DpSlider(stringResource(R.string.island_margin_right), mRight, 0..60) { scope.launch { prefs.setIslandMarginRight(it) } }
+            DpSlider(stringResource(R.string.island_top_gap), topGap, 0..24) { scope.launch { prefs.setIslandTopGap(it) } }
+            DpSlider(stringResource(R.string.island_bottom_pad), bottomPad, 0..48) { scope.launch { prefs.setIslandBottomPad(it) } }
+            Spacer(Modifier.height(6.dp))
+            Button(
+                onClick = {
+                    com.d4viddf.hyperbridge.overlay.GlassIslandOverlay.show(
+                        context,
+                        com.d4viddf.hyperbridge.overlay.IslandItem("preview", "HyperBridge", "Island preview", "Adjust the sliders, then preview again.", null, null, emptyList(), System.currentTimeMillis())
+                    )
+                },
+                enabled = a11yReady,
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+            ) { Text(stringResource(R.string.island_preview)) }
+            Spacer(Modifier.height(12.dp))
         }
         SwitchRow(stringResource(R.string.intercept_all_title), stringResource(R.string.intercept_all_desc), interceptAll) { scope.launch { prefs.setInterceptAllApps(it) } }
         SwitchRow(stringResource(R.string.suppress_native_title), stringResource(R.string.suppress_native_desc), suppress, enabled = hasRoot) { scope.launch { prefs.setSuppressNativePopups(it) } }

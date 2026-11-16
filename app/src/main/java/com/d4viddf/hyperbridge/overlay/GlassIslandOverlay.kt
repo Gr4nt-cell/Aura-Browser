@@ -102,7 +102,18 @@ private class OverlayOwner : LifecycleOwner, SavedStateRegistryOwner, ViewModelS
  * camera cut-out, so the island always wraps the camera: a one-row pill ("small expanded") that grows into a larger
  * rounded card ("large expanded") when tapped.
  */
+data class IslandLayout(val left: Int = 10, val right: Int = 10, val topGap: Int = 2, val bottomPad: Int = 16)
+
 object GlassIslandOverlay {
+    private var layout = IslandLayout()
+
+    /** Applies new edge distances; a visible island is rebuilt so the change shows immediately. */
+    fun setLayout(l: IslandLayout) {
+        if (l == layout) return
+        layout = l
+        scope.launch { if (view != null) { removeWindow() } }
+    }
+
     fun canDraw(@Suppress("UNUSED_PARAMETER") ctx: Context) = IslandAccessibilityService.instance != null
 
     private val scope = CoroutineScope(Dispatchers.Main + Job())
@@ -162,13 +173,14 @@ object GlassIslandOverlay {
         val metrics = windowManager.currentWindowMetrics
         val screenW = metrics.bounds.width()
         var winTopPx = 0
-        val marginPx = (10 * density).toInt()
+        val leftPx = (layout.left * density).toInt()
+        val rightPx = (layout.right * density).toInt()
         val cutout = metrics.windowInsets.displayCutout
         val top = cutout?.boundingRectTop
         if (top != null && !top.isEmpty) {
             cutoutW = (top.width() / density).dp
             // window starts 2dp above the camera so the card hugs it
-            winTopPx = maxOf(0, top.top - (2 * density).toInt())
+            winTopPx = maxOf(0, top.top - (layout.topGap * density).toInt())
             cutoutH = ((top.bottom - winTopPx) / density).dp
         } else {
             // no notch reported: reserve the status-bar sized strip so content never sits under a punch-hole either
@@ -177,7 +189,7 @@ object GlassIslandOverlay {
         }
 
         val lp = WindowManager.LayoutParams(
-            screenW - 2 * marginPx,
+            screenW - leftPx - rightPx,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -188,7 +200,7 @@ object GlassIslandOverlay {
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            x = 0
+            x = (leftPx - rightPx) / 2
             y = winTopPx
             if (Build.VERSION.SDK_INT >= 28) layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
             title = "HyperBridgeGlassIsland"
@@ -300,7 +312,7 @@ object GlassIslandOverlay {
 
     @Composable
     private fun LargeCard(item: IslandItem, topPad: Dp) {
-        Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 16.dp)) {
+        Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = layout.bottomPad.dp)) {
             Spacer(Modifier.height(topPad + 8.dp)) // camera zone
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AppIcon(item.icon, 34.dp)

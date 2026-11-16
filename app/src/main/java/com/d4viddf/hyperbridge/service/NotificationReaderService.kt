@@ -222,6 +222,12 @@ class NotificationReaderService : NotificationListenerService() {
         serviceScope.launch { preferences.globalBlockedTermsFlow.collectLatest { globalBlockedTerms = it } }
         serviceScope.launch { preferences.isDndModeEnabledFlow.collectLatest { isDndModeEnabled = it } }
         serviceScope.launch { preferences.overlayIslandEnabled.collectLatest { overlayEnabled = it } }
+        serviceScope.launch {
+            kotlinx.coroutines.flow.combine(
+                preferences.islandMarginLeft, preferences.islandMarginRight, preferences.islandTopGap, preferences.islandBottomPad
+            ) { l, r, t, b -> com.d4viddf.hyperbridge.overlay.IslandLayout(l, r, t, b) }
+                .collectLatest { com.d4viddf.hyperbridge.overlay.GlassIslandOverlay.setLayout(it) }
+        }
         serviceScope.launch { preferences.interceptAllApps.collectLatest { interceptAll = it } }
         serviceScope.launch {
             kotlinx.coroutines.flow.combine(preferences.suppressNativePopups, com.d4viddf.hyperbridge.util.RootManager.hasRoot) { want, root -> want && root }

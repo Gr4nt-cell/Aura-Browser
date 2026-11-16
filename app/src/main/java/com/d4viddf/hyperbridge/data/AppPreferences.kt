@@ -472,6 +472,16 @@ class AppPreferences(context: Context) {
     val overlayIslandEnabled: Flow<Boolean> = dao.getSettingFlow("overlay_island_enabled").map { it?.toBoolean() ?: true }
     suspend fun setOverlayIslandEnabled(v: Boolean) = save("overlay_island_enabled", v.toString())
 
+    // Island layout (dp): distance from the screen edges, gap above the camera, padding under the content
+    val islandMarginLeft: Flow<Int> = dao.getSettingFlow("island_margin_left").map { it?.toIntOrNull() ?: 10 }
+    val islandMarginRight: Flow<Int> = dao.getSettingFlow("island_margin_right").map { it?.toIntOrNull() ?: 10 }
+    val islandTopGap: Flow<Int> = dao.getSettingFlow("island_top_gap").map { it?.toIntOrNull() ?: 2 }
+    val islandBottomPad: Flow<Int> = dao.getSettingFlow("island_bottom_pad").map { it?.toIntOrNull() ?: 16 }
+    suspend fun setIslandMarginLeft(v: Int) = save("island_margin_left", v.toString())
+    suspend fun setIslandMarginRight(v: Int) = save("island_margin_right", v.toString())
+    suspend fun setIslandTopGap(v: Int) = save("island_top_gap", v.toString())
+    suspend fun setIslandBottomPad(v: Int) = save("island_bottom_pad", v.toString())
+
     /** Every notification from every app goes through this app (ignores the per-app allow list). */
     val interceptAllApps: Flow<Boolean> = dao.getSettingFlow("intercept_all_apps").map { it?.toBoolean() ?: true }
     suspend fun setInterceptAllApps(v: Boolean) = save("intercept_all_apps", v.toString())
