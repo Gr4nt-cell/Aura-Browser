@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -89,16 +90,15 @@ private fun PhoneSwitcher(ui: UiState) {
     val tabs = Browser.tabs
     val startIndex = remember { tabs.indexOfFirst { it.id == Browser.selectedId }.coerceAtLeast(0) }
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = startIndex)
-    val fling = rememberSnapFlingBehavior(listState, SnapPosition.Center)
-    val screenHPx = with(LocalDensity.current) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
+    val screenWPx = with(LocalDensity.current) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
 
     Box(Modifier.fillMaxSize().background(Ink.background())) {
-        // dim layer so the cards read as floating above whatever page was open
         Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = if (LocalDark.current) 0.35f else 0.06f)))
 
         BoxWithConstraints(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
-            val cardW = maxWidth * 0.70f
-            val sidePad = (maxWidth - cardW) / 2
+            val cardH = (maxHeight * 0.50f).coerceIn(240.dp, 420.dp)
+            val pitch = 118.dp               // visible strip of every card that is covered by the next one
+            val overlap = cardH - pitch
 
             Column(Modifier.fillMaxSize()) {
                 Row(
@@ -107,37 +107,27 @@ private fun PhoneSwitcher(ui: UiState) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "Close All",
-                        color = Ink.danger, fontSize = 16.sp, fontWeight = FontWeight.Medium,
-                        modifier = Modifier.clip(CircleShape)
-                            .clickable { Browser.closeAll(); ui.switcher = false }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        "Close All", color = Ink.danger, fontSize = 16.sp, fontWeight = FontWeight.Medium,
+                        modifier = Modifier.clip(CircleShape).clickable { Browser.closeAll(); ui.switcher = false }.padding(horizontal = 10.dp, vertical = 6.dp),
                     )
+                    Text("${tabs.size} ${if (tabs.size == 1) "Tab" else "Tabs"}", color = Ink.secondary(), fontSize = 15.sp, fontWeight = FontWeight.Medium)
                     Text(
-                        "${tabs.size} ${if (tabs.size == 1) "Tab" else "Tabs"}",
-                        color = Ink.secondary(), fontSize = 15.sp, fontWeight = FontWeight.Medium,
-                    )
-                    Text(
-                        "Done",
-                        color = Ink.accent, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.clip(CircleShape)
-                            .clickable { ui.switcher = false }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        "Done", color = Ink.accent, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clip(CircleShape).clickable { ui.switcher = false }.padding(horizontal = 10.dp, vertical = 6.dp),
                     )
                 }
 
-                LazyRow(
+                // Vertical stack: each card is overlapped by the next, like iOS' stacked Recents.
+                LazyColumn(
                     state = listState,
-                    flingBehavior = fling,
-                    contentPadding = PaddingValues(horizontal = sidePad),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 6.dp, bottom = overlap + 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(-overlap),
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                 ) {
                     items(tabs, key = { it.id }) { tab ->
-                        DeckCard(
-                            tab = tab, listState = listState, screenHPx = screenHPx,
-                            modifier = Modifier.animateItem().fillParentMaxHeight(0.80f).width(cardW),
+                        StackCard(
+                            tab = tab, listState = listState, screenWPx = screenWPx,
+                            modifier = Modifier.animateItem().fillMaxWidth().height(cardH),
                             onOpen = { closeSwitcherAndOpen(ui, tab.id) },
                         )
                     }
@@ -152,42 +142,45 @@ private fun PhoneSwitcher(ui: UiState) {
 }
 
 @Composable
-private fun DeckCard(
+private fun StackCard(
     tab: TabState,
     listState: androidx.compose.foundation.lazy.LazyListState,
-    screenHPx: Float,
+    screenWPx: Float,
     modifier: Modifier,
     onOpen: () -> Unit,
 ) {
     var drag by remember(tab.id) { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
-    val shape = RoundedCornerShape(26.dp)
+    val shape = RoundedCornerShape(24.dp)
+    val dark = LocalDark.current
 
-    Column(
+    Box(
         modifier
             .graphicsLayer {
-                // Distance of this card from the centre of the viewport, in card widths. Read inside the layer
-                // block so scrolling only re-draws the cards instead of recomposing them.
+                // Cards further up the screen recede slightly (smaller, tilted back) so the pile has depth.
                 val info = listState.layoutInfo
                 val item = info.visibleItemsInfo.firstOrNull { it.key == tab.id }
-                var d = 0f
+                var t = 1f
                 if (item != null) {
-                    val viewportCentre = (info.viewportStartOffset + info.viewportEndOffset) / 2f
-                    d = ((item.offset + item.size / 2f) - viewportCentre) / item.size.toFloat()
+                    val span = (info.viewportEndOffset - info.viewportStartOffset).toFloat().coerceAtLeast(1f)
+                    t = ((item.offset - info.viewportStartOffset) / span).coerceIn(0f, 1f)
                 }
-                val near = abs(d).coerceAtMost(1f)
-                val s = 1f - 0.09f * near
+                val s = 0.90f + 0.10f * t
                 scaleX = s
                 scaleY = s
-                translationY = drag
-                alpha = (1f - 0.28f * near) * (1f + (drag / screenHPx) * 1.6f).coerceIn(0f, 1f)
+                cameraDistance = 14f * density
+                rotationX = (1f - t) * 14f
+                translationX = drag
+                alpha = (1f - (abs(drag) / screenWPx) * 1.4f).coerceIn(0f, 1f)
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
             }
             .draggable(
-                orientation = Orientation.Vertical,
-                state = rememberDraggableState { delta -> drag = (drag + delta).coerceAtMost(36f) },
+                orientation = Orientation.Horizontal,
+                state = rememberDraggableState { delta -> drag += delta },
                 onDragStopped = { velocity ->
-                    if (drag < -150f || velocity < -1500f) {
-                        animate(drag, -screenHPx, animationSpec = tween(190)) { v, _ -> drag = v }
+                    if (abs(drag) > screenWPx * 0.32f || abs(velocity) > 1600f) {
+                        val dir = if (drag + velocity * 0.05f >= 0f) 1f else -1f
+                        animate(drag, dir * screenWPx, animationSpec = tween(180)) { v, _ -> drag = v }
                         Browser.close(tab.id)
                     } else {
                         animate(drag, 0f, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)) { v, _ -> drag = v }
@@ -195,24 +188,28 @@ private fun DeckCard(
                 },
             ),
     ) {
-        // app-style label above the card
-        Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        CardFace(tab, shape, Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onOpen))
+        // title bar pinned to the top of every card (the only part visible when the card is covered)
+        Row(
+            Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Black.copy(alpha = if (dark) 0.62f else 0.50f), Color.Black.copy(alpha = 0.18f))))
+                .padding(start = 14.dp, end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             val fav = tab.favicon
             if (fav != null) Image(fav, null, Modifier.size(18.dp).clip(RoundedCornerShape(5.dp)))
-            else Icon(Ic.Globe, Ink.secondary(), 18.dp)
+            else Icon(Ic.Globe, Color.White.copy(alpha = 0.85f), 18.dp)
             Text(
-                tabLabel(tab), color = Ink.primary(), fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                tabLabel(tab), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                modifier = Modifier.weight(1f).padding(horizontal = 9.dp),
             )
             Box(
-                Modifier.size(26.dp).clip(CircleShape)
-                    .background(if (LocalDark.current) Color.White.copy(alpha = 0.14f) else Color.Black.copy(alpha = 0.08f))
-                    .clickable { scope.launch { animate(drag, -screenHPx, animationSpec = tween(190)) { v, _ -> drag = v }; Browser.close(tab.id) } },
+                Modifier.size(26.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.22f))
+                    .clickable { scope.launch { animate(drag, screenWPx, animationSpec = tween(180)) { v, _ -> drag = v }; Browser.close(tab.id) } },
                 contentAlignment = Alignment.Center,
-            ) { Icon(Ic.Close, Ink.primary(), 13.dp) }
+            ) { Icon(Ic.Close, Color.White, 13.dp) }
         }
-        CardFace(tab, shape, Modifier.weight(1f).fillMaxWidth().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onOpen))
     }
 }
 

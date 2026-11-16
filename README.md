@@ -1,4 +1,4 @@
-# Aura Browser 2.4
+# Aura Browser 2.5
 
 A native Android browser written in Kotlin and Jetpack Compose. Package `com.gr4nt.aurabrowser`, Android 8.0+ (API 26), signed with the same development key as earlier releases so it updates 1.x in place.
 
@@ -8,7 +8,7 @@ The engine is **Android System WebView (Chromium)**, not WebKit. Keep Android Sy
 
 ## Layouts
 
-- **Phone (< 600dp):** floating glass toolbar below the page (the WebView sits in its own area, never underneath controls), collapsing on scroll. The tab switcher is a horizontal snap-scrolling card deck modelled on iOS Recents: cards scale and fade away from the centre, swipe a card up to close it, tap to open.
+- **Phone (< 600dp):** floating glass toolbar below the page (the WebView sits in its own area, never underneath controls), collapsing on scroll. The tab switcher is a vertical stack of overlapping cards (iOS Recents style): cards recede and tilt towards the top, swipe a card sideways to close it, tap to open.
 - **Tablet (600dp+) and desktop / resizable windows (1000dp+):** Safari-for-Mac style toolbar (sidebar toggle, back/forward, centred address field with suggestions, share, new tab, tab overview), a tab strip, an optional bookmarks/history sidebar and a grid tab overview.
 - Liquid-glass surfaces are built from a blurred sample of the page edge, frost, specular highlight and a bright rim. This is an interpretation, not Apple's renderer.
 
