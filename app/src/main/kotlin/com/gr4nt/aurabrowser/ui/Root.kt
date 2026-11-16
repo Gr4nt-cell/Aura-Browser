@@ -62,9 +62,10 @@ class UiState {
     var sidebar by mutableStateOf(false)
     var sidebarTab by mutableIntStateOf(0)
     var privacy by mutableStateOf(false)
+    var media by mutableStateOf(false)
 
-    fun anySheet() = more || settings || downloads || library || privacy
-    fun closeSheets() { more = false; settings = false; downloads = false; library = false; privacy = false }
+    fun anySheet() = more || settings || downloads || library || privacy || media
+    fun closeSheets() { more = false; settings = false; downloads = false; library = false; privacy = false; media = false }
 }
 
 /** Captures the visible page first so the tab switcher shows a fresh card for the current tab. */

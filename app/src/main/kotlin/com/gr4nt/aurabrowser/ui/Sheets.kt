@@ -135,6 +135,7 @@ fun MoreSheet(ui: UiState, form: Form) {
                 SheetRow("Find on Page", Ic.Search, { close(); ui.find = true })
                 SheetRow(if (Web.isDesktop(tab)) "Request Mobile Site" else "Request Desktop Site", Ic.Desktop, { close(); Web.setDesktop(tab, !Web.isDesktop(tab)) })
             }
+            if (tab.media.isNotEmpty()) SheetRow("Save Video / Audio", Ic.Download, { close(); ui.media = true }, sub = "${tab.media.size} found on this page")
             SheetRow("Downloads", Ic.Download, { close(); ui.downloads = true }, sub = if (Downloads.hasActive()) "${formatBytes(Downloads.totalSpeed().toLong())}/s" else null)
             SheetRow("Bookmarks & History", Ic.Book, { close(); ui.library = true })
             SheetRow("Privacy Report", Ic.Shield, { close(); ui.privacy = true }, sub = "${Prefs.totalBlocked} blocked so far")
@@ -365,3 +366,21 @@ fun PrivacySheet(ui: UiState, form: Form) {
 }
 
 internal fun TabState.hostLabel(): String = displayHost.ifEmpty { "Start Page" }
+
+@Composable
+fun MediaSheet(ui: UiState, form: Form) {
+    val tab = Browser.current ?: return
+    val title = tab.title.ifBlank { tab.displayHost }
+    GlassSheet(onDismiss = { ui.media = false }, wide = form != Form.Phone, title = "Videos on this page") {
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            if (tab.media.isEmpty()) SheetRow("Nothing found yet. Press play, then check again.", null, null)
+            tab.media.toList().asReversed().forEach { m ->
+                SheetRow(m.label, Ic.Download, {
+                    ui.media = false
+                    if (m.hls) Downloads.enqueueHls(m.url, tab.currentUA, tab.url, title)
+                    else Downloads.enqueue(m.url, tab.currentUA, "attachment; filename=\"" + title.replace('"', ' ') + "." + m.url.substringBefore('?').substringAfterLast('.', "mp4").take(5) + "\"", null, tab.url)
+                }, sub = if (m.hls) "HLS stream · joined into one file" else Blocker.hostOf(m.url))
+            }
+        }
+    }
+}

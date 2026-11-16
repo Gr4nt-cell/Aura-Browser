@@ -39,6 +39,7 @@ class TabState(val id: String = UUID.randomUUID().toString().take(10), initialUr
     var findQuery by mutableStateOf("")
     var findMatches by mutableIntStateOf(0)
     var findIndex by mutableIntStateOf(0)
+    val media = androidx.compose.runtime.mutableStateListOf<MediaItem>()
 
     @Volatile var pageHost: String? = null
     val blockedCounter = AtomicInteger(0)

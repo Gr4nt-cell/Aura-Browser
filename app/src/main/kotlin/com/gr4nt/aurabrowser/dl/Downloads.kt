@@ -46,6 +46,7 @@ object Downloads {
     private lateinit var root: File
     private val client by lazy { Http.client(96) }
     private val transfers = LinkedHashMap<String, Transfer>()
+    private val hls = java.util.concurrent.ConcurrentHashMap<String, HlsJob>()
     private val io = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
 
@@ -88,6 +89,20 @@ object Downloads {
         ensureService()
     }
 
+    /** Downloads an HLS (.m3u8) stream into a single file. */
+    fun enqueueHls(url: String, userAgent: String, referer: String?, title: String) {
+        val cookie = CookieManager.getInstance().getCookie(url) ?: ""
+        val id = UUID.randomUUID().toString().take(12)
+        val name = sanitize(title.ifBlank { "video" }) + ".ts"
+        val meta = JobMeta(id, url, name, "video/mp2t", cookie, userAgent, referer ?: "")
+        val job = HlsJob(meta, File(root, id), client, { main.post { publish() } }) { file ->
+            io.execute { export(meta, file); File(root, id).deleteRecursively() }
+        }
+        hls[id] = job
+        toast.value = "Downloading stream"
+        job.start(); publish(); ensureService()
+    }
+
     private fun sanitize(n: String): String {
         val cleaned = n.replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_").trim().trim('.')
         return if (cleaned.isEmpty()) "download" else cleaned.take(120)
@@ -119,6 +134,12 @@ object Downloads {
     fun resumeAll() { transfers.values.forEach { if (it.meta.state == JobState.Paused) it.meta.state = JobState.Queued }; pump() }
 
     fun remove(id: String, deleteFile: Boolean) {
+        hls.remove(id)?.let { j ->
+            val uri = j.meta.savedUri
+            j.cancel()
+            if (deleteFile && uri.isNotEmpty()) try { app.contentResolver.delete(Uri.parse(uri), null, null) } catch (_: Exception) {}
+            publish(); return
+        }
         val t = transfers.remove(id) ?: return
         val uri = t.meta.savedUri
         t.cancelAndDelete()
@@ -129,13 +150,14 @@ object Downloads {
     }
 
     fun clearFinished() {
-        transfers.values.filter { it.meta.state == JobState.Completed || it.meta.state == JobState.Failed }
-            .map { it.meta.id }.forEach { remove(it, false) }
+        (transfers.values.map { it.meta } + hls.values.map { it.meta })
+            .filter { it.state == JobState.Completed || it.state == JobState.Failed }
+            .map { it.id }.forEach { remove(it, false) }
     }
 
-    fun hasActive(): Boolean = transfers.values.any { it.meta.state == JobState.Downloading || it.meta.state == JobState.Queued }
+    fun hasActive(): Boolean = transfers.values.any { it.meta.state == JobState.Downloading || it.meta.state == JobState.Queued } || hls.values.any { it.meta.state == JobState.Downloading }
 
-    fun totalSpeed(): Double = transfers.values.filter { it.meta.state == JobState.Downloading }.sumOf { it.meta.speedBps }
+    fun totalSpeed(): Double = transfers.values.filter { it.meta.state == JobState.Downloading }.sumOf { it.meta.speedBps } + hls.values.filter { it.meta.state == JobState.Downloading }.sumOf { it.meta.speedBps }
     fun overallProgress(): Float {
         val active = transfers.values.filter { it.meta.state == JobState.Downloading || it.meta.state == JobState.Queued }
         val total = active.sumOf { it.meta.size.coerceAtLeast(0) }
@@ -144,10 +166,9 @@ object Downloads {
     }
 
     private fun publish() {
-        val list = transfers.values.map {
-            val m = it.meta
+        val list = (transfers.values.map { it.meta } + hls.values.map { it.meta }).sortedByDescending { it.created }.map { m ->
             DownloadRow(m.id, m.fileName, m.url, m.state, m.progress(), m.downloaded.get(), m.size, m.speedBps, m.error, m.savedUri, m.mime)
-        }.reversed()
+        }
         rows.clear(); rows.addAll(list)
     }
 

@@ -176,6 +176,7 @@ object Web {
                 .put("redirects", Prefs.blockRedirects).put("cookie", Prefs.hideCookieBanners)
                 .put("yt", Prefs.youtubeAdSkip).put("off", off).toString()
         }
+        @JavascriptInterface fun media(url: String) { Media.add(tab, url) }
         @JavascriptInterface fun cosmetic(): String = Blocker.cosmeticData.ifEmpty { "{}" }
         @JavascriptInterface fun blocked(kind: String, url: String) {
             tab.blockedCounter.incrementAndGet(); Browser.scheduleBlockedSync(tab)
@@ -357,6 +358,7 @@ object Web {
             val url = request.url.toString()
             val scheme = request.url.scheme
             if (scheme != "http" && scheme != "https") return null
+            if (!request.isForMainFrame) Media.sniff(tab, url)
             if (request.isForMainFrame) {
                 if (tab.openerId != null && !tab.pageLoadedOnce && Prefs.blockPopups && Blocker.isAdNavigation(url)) {
                     tab.blockedCounter.incrementAndGet()
@@ -422,6 +424,7 @@ object Web {
             tab.progress = 0.05f
             tab.blockedCounter.set(0)
             tab.blocked = 0
+            Browser.post { tab.media.clear() }
             if (tab.openerId != null && Browser.selectedId != tab.id && !Blocker.isAdNavigation(url) && url != "about:blank") {
                 Browser.select(tab.id)
             }

@@ -58,6 +58,7 @@ fun Overlays(ui: UiState, form: Form) {
     if (ui.downloads) DownloadsSheet(ui, form)
     if (ui.library) LibrarySheet(ui, form)
     if (ui.privacy) PrivacySheet(ui, form)
+    if (ui.media) MediaSheet(ui, form)
     PromptHost(form)
 }
 

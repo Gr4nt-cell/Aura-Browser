@@ -8,6 +8,22 @@
   var B = window.AuraBridge;
   var cfg = { ads: true, popups: true, redirects: true, cookie: true, yt: true, off: false };
   try { cfg = JSON.parse(B.config(location.hostname)); } catch (e) {}
+  /* media discovery (reported even when blocking is off for the site) */
+  try {
+    var seenMedia = Object.create(null);
+    var reportMedia = function (el) {
+      try {
+        var u = el.currentSrc || el.src || '';
+        if (u && /^https?:/i.test(u) && !seenMedia[u]) { seenMedia[u] = 1; B.media(u); }
+        var kids = el.querySelectorAll ? el.querySelectorAll('source[src]') : [];
+        for (var i = 0; i < kids.length; i++) { var k = kids[i].src; if (k && /^https?:/i.test(k) && !seenMedia[k]) { seenMedia[k] = 1; B.media(k); } }
+      } catch (e) {}
+    };
+    ['loadstart', 'loadedmetadata', 'play', 'playing'].forEach(function (n) {
+      document.addEventListener(n, function (e) { if (e.target && (e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO')) reportMedia(e.target); }, true);
+    });
+    setInterval(function () { var v = document.querySelectorAll('video,audio'); for (var i = 0; i < v.length; i++) reportMedia(v[i]); }, 2500);
+  } catch (e) {}
   if (cfg.off) return;
   var isTop = window.top === window;
   function report(kind, url) { try { B.blocked(kind, String(url || '')); } catch (e) {} }

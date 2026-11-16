@@ -1,4 +1,4 @@
-# Aura Browser 2.1
+# Aura Browser 2.2
 
 A native Android browser written in Kotlin and Jetpack Compose. Package `com.gr4nt.aurabrowser`, Android 8.0+ (API 26), signed with the same development key as earlier releases so it updates 1.x in place.
 
@@ -19,6 +19,8 @@ Request-level blocking from compiled EasyList, EasyPrivacy, AdGuard base and Ste
 ## Downloads
 
 Segmented downloader (`dl/Engine.kt`): up to 32 parallel ranged HTTP/1.1 connections per file (default 16, adjustable), a persisted bitmap of finished chunks so pause/resume survives the app being killed, automatic back-off on 429/503, restart when the file changes on the server, single-stream fallback when a server ignores `Range`. Speed is limited by your network and the server; more connections cannot guarantee a particular speed. Finished files are saved to `Downloads/Aura Browser`.
+
+Videos: media requests (mp4, webm, mp3, HLS .m3u8 and more) and `<video>` sources are detected per page; More > Save Video / Audio downloads them (HLS is fetched in parallel and joined into one file; DRM/encrypted and blob/MSE streams can't be saved).
 
 ## Uploads, camera and links
 
