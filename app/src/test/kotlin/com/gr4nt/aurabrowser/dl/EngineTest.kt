@@ -98,7 +98,7 @@ private class TestServer(private val payload: ByteArray, private val slow: Atomi
                 val n = minOf(64 * 1024, body.size - pos)
                 out.write(body, pos, n)
                 pos += n
-                if (slow.get()) { out.flush(); Thread.sleep(2) }
+                if (slow.get()) { out.flush(); Thread.sleep(4) }
             }
         }
         out.flush()
@@ -141,6 +141,7 @@ class EngineTest {
 
     @Test
     fun parallelRangesAreByteExact() {
+        slow.set(true) // keep each chunk in flight long enough for the connections to overlap
         val (meta, out) = run("/ranged", 12)
         assertEquals(meta.error, JobState.Completed, meta.state)
         assertArrayEquals(payload, out!!.readBytes())
@@ -164,7 +165,7 @@ class EngineTest {
         val first = Transfer(meta, dir, Http.client(), 6, listener)
         first.start()
         val deadline = System.currentTimeMillis() + 30_000
-        while (meta.downloaded.get() < 1_500_000 && System.currentTimeMillis() < deadline) Thread.sleep(20)
+        while (synchronized(meta.done) { meta.done.cardinality() } < 2 && System.currentTimeMillis() < deadline) Thread.sleep(10)
         first.pause()
         Thread.sleep(400)
         assertEquals(JobState.Paused, meta.state)
