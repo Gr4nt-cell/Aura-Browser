@@ -24,6 +24,13 @@
     });
     setInterval(function () { var v = document.querySelectorAll('video,audio'); for (var i = 0; i < v.length; i++) reportMedia(v[i]); }, 2500);
   } catch (e) {}
+  if (window.top === window && cfg.pad) {
+    try {
+      var padStyle = document.createElement('style');
+      padStyle.textContent = 'html::after{content:"";display:block;height:' + cfg.pad + 'px;pointer-events:none}';
+      (document.head || document.documentElement).appendChild(padStyle);
+    } catch (e) {}
+  }
   if (cfg.off) return;
   var isTop = window.top === window;
   function report(kind, url) { try { B.blocked(kind, String(url || '')); } catch (e) {} }

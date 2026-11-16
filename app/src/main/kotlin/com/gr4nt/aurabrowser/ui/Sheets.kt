@@ -67,13 +67,13 @@ internal fun SheetRow(
     val tint = if (danger) Ink.danger else Ink.primary()
     Row(
         modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 22.dp, vertical = 13.dp),
+            .padding(horizontal = 18.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (ic != null) Icon(ic, if (danger) Ink.danger else Ink.accent, 21.dp)
-        Column(Modifier.weight(1f).padding(start = if (ic != null) 16.dp else 0.dp)) {
-            Text(label, color = tint, fontSize = 16.sp)
-            if (sub != null) Text(sub, color = Ink.tertiary(), fontSize = 12.sp, modifier = Modifier.padding(top = 1.dp))
+        if (ic != null) Icon(ic, if (danger) Ink.danger else Ink.accent, 19.dp)
+        Column(Modifier.weight(1f).padding(start = if (ic != null) 13.dp else 0.dp)) {
+            Text(label, color = tint, fontSize = 15.sp)
+            if (sub != null) Text(sub, color = Ink.tertiary(), fontSize = 11.5.sp, modifier = Modifier.padding(top = 1.dp))
         }
         trailing?.invoke()
     }

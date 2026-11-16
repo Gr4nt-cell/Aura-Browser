@@ -174,7 +174,7 @@ object Web {
             val off = Prefs.isSiteAllowed(h)
             return JSONObject().put("ads", Prefs.blockAds).put("popups", Prefs.blockPopups)
                 .put("redirects", Prefs.blockRedirects).put("cookie", Prefs.hideCookieBanners)
-                .put("yt", Prefs.youtubeAdSkip).put("off", off).toString()
+                .put("yt", Prefs.youtubeAdSkip).put("off", off).put("pad", dockPadDp).toString()
         }
         @JavascriptInterface fun media(url: String) { Media.add(tab, url) }
         @JavascriptInterface fun cosmetic(): String = Blocker.cosmeticData.ifEmpty { "{}" }
@@ -350,6 +350,8 @@ object Web {
     }
 
     // ------------------------------------------------------------------ WebViewClient
+
+    @Volatile var dockPadDp = 0
 
     private val emptyResponse get() = WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream(ByteArray(0)))
 

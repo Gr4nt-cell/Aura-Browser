@@ -67,39 +67,63 @@ fun GlassPanel(
     sample: ImageBitmap? = null,
     fromBottom: Boolean = true,
     elevation: Dp = 10.dp,
-    tintAlpha: Float = 0.34f,
+    tintAlpha: Float = 0.26f,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val dark = LocalDark.current
     val base = if (dark) Color(0xFF1C1B26) else Color.White
-    val rimTop = if (dark) Color.White.copy(alpha = 0.34f) else Color.White.copy(alpha = 0.95f)
-    val rimMid = if (dark) Color.White.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.25f)
-    val rimBottom = if (dark) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.7f)
+    val rimTop = if (dark) Color.White.copy(alpha = 0.55f) else Color.White
+    val rimMid = if (dark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.20f)
+    val rimBottom = if (dark) Color.White.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.85f)
     Box(
         modifier
-            .shadow(elevation, shape, ambientColor = Color.Black.copy(alpha = 0.10f), spotColor = Color.Black.copy(alpha = 0.22f))
+            .shadow(elevation, shape, ambientColor = Color.Black.copy(alpha = 0.08f), spotColor = Color.Black.copy(alpha = 0.20f))
             .clip(shape)
     ) {
-        // 1. page edge, blurred
+        // 1. page edge, blurred and magnified a touch (lens effect)
         if (sample != null) {
-            BackdropCanvas(sample, fromBottom, Modifier.matchParentSize().let { if (Build.VERSION.SDK_INT >= 31) it.blur(22.dp, BlurredEdgeTreatment.Unbounded) else it })
+            BackdropCanvas(sample, fromBottom, Modifier.matchParentSize().let { if (Build.VERSION.SDK_INT >= 31) it.blur(16.dp, BlurredEdgeTreatment.Unbounded) else it })
         } else {
-            Box(Modifier.matchParentSize().background(base.copy(alpha = 0.55f)))
+            Box(Modifier.matchParentSize().background(base.copy(alpha = 0.40f)))
         }
-        // 2. frost
-        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(base.copy(alpha = tintAlpha + 0.14f), base.copy(alpha = tintAlpha - 0.06f)))))
-        // 3. specular highlight, brighter at the top-left like light catching a curved edge
+        // 2. frost: lighter than before so the page shows through
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(base.copy(alpha = tintAlpha + 0.08f), base.copy(alpha = (tintAlpha - 0.10f).coerceAtLeast(0.04f))))))
+        // 3. broad specular sheen across the top-left
         Box(
             Modifier.matchParentSize().background(
                 Brush.linearGradient(
-                    listOf(Color.White.copy(alpha = if (dark) 0.10f else 0.38f), Color.Transparent, Color.White.copy(alpha = if (dark) 0.05f else 0.14f)),
-                    start = Offset(0f, 0f), end = Offset(600f, 400f)
+                    listOf(Color.White.copy(alpha = if (dark) 0.16f else 0.50f), Color.Transparent, Color.White.copy(alpha = if (dark) 0.07f else 0.20f)),
+                    start = Offset(0f, 0f), end = Offset(520f, 380f)
                 )
             )
         )
-        // 4. rim
-        Box(Modifier.matchParentSize().border(1.dp, Brush.linearGradient(listOf(rimTop, rimMid, rimBottom), start = Offset(0f, 0f), end = Offset(500f, 500f)), shape))
+        // 4. soft inner glow hugging the bottom edge (light bending through the thick edge of the glass)
+        Box(
+            Modifier.matchParentSize().background(
+                Brush.verticalGradient(
+                    0.0f to Color.Transparent, 0.72f to Color.Transparent,
+                    1.0f to Color.White.copy(alpha = if (dark) 0.14f else 0.32f),
+                )
+            )
+        )
+        // 5. crisp rim, bright on the lit edges, plus a faint inner ring for thickness
+        Box(Modifier.matchParentSize().border(1.2.dp, Brush.linearGradient(listOf(rimTop, rimMid, rimBottom), start = Offset(0f, 0f), end = Offset(500f, 500f)), shape))
+        Box(Modifier.matchParentSize().padding(2.dp).border(0.6.dp, Color.White.copy(alpha = if (dark) 0.07f else 0.30f), shape))
         content()
+    }
+}
+
+/** Blurs whatever is behind a dialog window (Android 12+, when the device allows cross-window blur). */
+@Composable
+private fun BlurBehind(radiusPx: Int) {
+    val v = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.SideEffect {
+        if (Build.VERSION.SDK_INT >= 31) {
+            (v.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window?.let { w ->
+                w.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                val a = w.attributes; a.blurBehindRadius = radiusPx; w.attributes = a
+            }
+        }
     }
 }
 
@@ -162,25 +186,27 @@ fun GlassSheet(onDismiss: () -> Unit, wide: Boolean, title: String? = null, cont
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        BlurBehind(48)
         Box(
-            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.30f)).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onDismiss() },
-            contentAlignment = if (wide) Alignment.Center else Alignment.BottomCenter
+            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.16f)).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onDismiss() },
+            contentAlignment = Alignment.Center,
         ) {
             AnimatedVisibility(
                 visible = shown,
-                enter = fadeIn(tween(160)) + slideInVertically(tween(260)) { if (wide) 40 else it / 2 },
-                exit = fadeOut(tween(120)) + slideOutVertically(tween(160)) { it / 3 },
+                enter = fadeIn(tween(160)) + androidx.compose.animation.scaleIn(tween(240), initialScale = 0.92f),
+                exit = fadeOut(tween(120)) + androidx.compose.animation.scaleOut(tween(150), targetScale = 0.94f),
             ) {
                 GlassPanel(
                     Modifier
-                        .then(if (wide) Modifier.widthIn(max = 560.dp).fillMaxWidth(0.92f).heightIn(max = 640.dp) else Modifier.fillMaxWidth().padding(horizontal = 10.dp).navigationBarsPadding().padding(bottom = 10.dp).heightIn(max = 620.dp))
+                        .widthIn(max = if (wide) 400.dp else 330.dp).fillMaxWidth(if (wide) 0.6f else 0.84f)
+                        .heightIn(max = if (wide) 520.dp else 480.dp)
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
-                    RoundedCornerShape(32.dp), tintAlpha = 0.62f, elevation = 24.dp,
+                    RoundedCornerShape(28.dp), tintAlpha = 0.40f, elevation = 28.dp,
                 ) {
-                    androidx.compose.foundation.layout.Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+                    androidx.compose.foundation.layout.Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
                         if (title != null) {
-                            Text(title, color = Ink.primary(), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp))
+                            Text(title, color = Ink.primary(), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 6.dp, start = 14.dp, end = 14.dp), maxLines = 1)
                         }
                         content()
                     }
@@ -202,8 +228,9 @@ fun GlassAlert(
     extra: (@Composable () -> Unit)? = null,
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        GlassPanel(Modifier.widthIn(max = 340.dp).fillMaxWidth(0.86f), RoundedCornerShape(30.dp), tintAlpha = 0.66f, elevation = 24.dp) {
-            androidx.compose.foundation.layout.Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        BlurBehind(40)
+        GlassPanel(Modifier.widthIn(max = 300.dp).fillMaxWidth(0.8f), RoundedCornerShape(28.dp), tintAlpha = 0.42f, elevation = 24.dp) {
+            androidx.compose.foundation.layout.Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(title, color = Ink.primary(), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
                 if (message != null) {
                     Text(message, color = Ink.secondary(), fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp), maxLines = 8)

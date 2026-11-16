@@ -36,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -75,48 +76,27 @@ fun ChromeStrip(modifier: Modifier, sample: ImageBitmap?, fromBottom: Boolean, c
 @Composable
 fun PhoneLayout(ui: UiState) {
     val tab = Browser.current ?: return
+    val navPx = WindowInsets.navigationBars.getBottom(androidx.compose.ui.platform.LocalDensity.current)
+    val navDp = with(androidx.compose.ui.platform.LocalDensity.current) { navPx.toDp() }
+    SideEffect { Web.dockPadDp = (76 + 14 + navDp.value).toInt() }
     Column(Modifier.fillMaxSize()) {
         ChromeStrip(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars), tab.sample, fromBottom = false)
-        if (tab.isBlank) {
-            // Start page runs underneath the dock: no band at all.
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                StartPage(tab, Form.Phone, bottomInset = 76.dp + 24.dp)
-                Column(Modifier.align(Alignment.BottomCenter)) {
-                    if (ui.find) FindBar(ui, tab)
-                    PhoneBar(ui, tab, transparent = true)
-                }
+        // The page fills the whole area; the dock is just floating glass on top of it (no band behind it).
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            if (tab.isBlank) StartPage(tab, Form.Phone, bottomInset = 76.dp + 24.dp + navDp) else WebHost(tab, Modifier.fillMaxSize())
+            Column(Modifier.align(Alignment.BottomCenter)) {
+                if (ui.find) FindBar(ui, tab)
+                PhoneBar(ui, tab)
             }
-        } else {
-            Box(Modifier.weight(1f).fillMaxWidth()) { WebHost(tab, Modifier.fillMaxSize()) }
-            if (ui.find) FindBar(ui, tab)
-            PhoneBar(ui, tab, transparent = false)
         }
     }
 }
 
-/** Average colour of the bottom rows of the page sample, so the dock area simply continues the page. */
-private fun edgeColor(sample: ImageBitmap?): Color? {
-    if (sample == null || sample.width < 1 || sample.height < 2) return null
-    return try {
-        val rows = minOf(3, sample.height)
-        val w = sample.width
-        val buf = IntArray(w * rows)
-        sample.readPixels(buf, startX = 0, startY = sample.height - rows, width = w, height = rows)
-        var r = 0L; var g = 0L; var b = 0L
-        for (px in buf) { r += (px shr 16) and 0xFF; g += (px shr 8) and 0xFF; b += px and 0xFF }
-        val n = buf.size
-        Color(red = (r / n).toInt(), green = (g / n).toInt(), blue = (b / n).toInt())
-    } catch (_: Throwable) { null }
-}
-
 @Composable
-private fun PhoneBar(ui: UiState, tab: TabState, transparent: Boolean) {
+private fun PhoneBar(ui: UiState, tab: TabState) {
     val collapsed = Browser.chromeCollapsed && !ui.editing && !tab.isBlank
     val h by animateDpAsState(if (collapsed) 40.dp else 76.dp, tween(220), label = "bar")
-    val edge = remember(tab.sample) { edgeColor(tab.sample) }
-    val fallback = Ink.solidBg()
-    val bg by androidx.compose.animation.animateColorAsState(edge ?: fallback, tween(250), label = "dockbg")
-    Column(Modifier.fillMaxWidth().then(if (transparent) Modifier else Modifier.background(bg))) {
+    Column(Modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth().height(h), contentAlignment = Alignment.Center) {
             if (collapsed) CollapsedPill(tab) else ExpandedBar(ui, tab)
         }
