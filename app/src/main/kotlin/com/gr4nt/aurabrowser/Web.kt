@@ -128,7 +128,13 @@ object Web {
         wv.webChromeClient = Chrome(tab)
         wv.setDownloadListener { url, ua, cd, mime, _ -> startDownload(tab, wv, url, ua, cd, mime) }
         wv.setOnTouchListener { _, e ->
-            if (e.action == MotionEvent.ACTION_DOWN || e.action == MotionEvent.ACTION_UP) tab.lastTouch = System.currentTimeMillis()
+            if (e.action == MotionEvent.ACTION_DOWN || e.action == MotionEvent.ACTION_UP) {
+                tab.lastTouch = System.currentTimeMillis()
+                try {
+                    val t = (wv.hitTestResult).type
+                    if (t == WebView.HitTestResult.SRC_ANCHOR_TYPE || t == WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE) tab.lastAnchorTap = tab.lastTouch
+                } catch (_: Exception) {}
+            }
             false
         }
         wv.setOnLongClickListener { v -> onLongPress(tab, v as WebView) }
@@ -517,7 +523,7 @@ h1{font-size:22px;margin:0 0 8px}p{margin:6px 0;opacity:.75;word-break:break-wor
             if (Prefs.blockPopups && !Prefs.isSiteAllowed(tab.pageHost ?: "")) {
                 val now = System.currentTimeMillis()
                 // A real tap must have happened just now; delayed, dialog-style or rapid-fire windows are pop-ups/pop-unders.
-                val stale = now - tab.lastTouch > 1500
+                val stale = now - tab.lastTouch > 1500 || now - tab.lastAnchorTap > 1500 // only a tap on a real link may open a window
                 val burst = now - tab.lastPopupAt < 2500
                 if (!isUserGesture || isDialog || stale || burst) {
                     tab.blockedCounter.incrementAndGet(); Browser.scheduleBlockedSync(tab)

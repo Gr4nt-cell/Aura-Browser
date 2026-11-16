@@ -4,15 +4,19 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Glass prism inside the 66dp safe zone -->
+    <!-- compass / globe dial, inside the 66dp safe zone -->
     <path
-        android:fillColor="#E6FFFFFF"
-        android:pathData="M54,30 L80,74 Q82,78 77,78 L31,78 Q26,78 28,74 Z" />
+        android:fillColor="#26FFFFFF"
+        android:pathData="M54,54m-27,0a27,27 0,1 1,54 0a27,27 0,1 1,-54 0" />
     <path
-        android:fillColor="#66FFFFFF"
-        android:pathData="M54,30 L54,78 L31,78 Q26,78 28,74 Z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:fillAlpha="0.9"
-        android:pathData="M54,30 L62,44 L54,52 L46,44 Z" />
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3.6"
+        android:pathData="M54,54m-27,0a27,27 0,1 1,54 0a27,27 0,1 1,-54 0" />
+    <!-- cardinal ticks -->
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="3" android:strokeLineCap="round"
+        android:pathData="M54,30.5 L54,36 M54,72 L54,77.5 M30.5,54 L36,54 M72,54 L77.5,54" />
+    <!-- needle: red north-east half, white south-west half -->
+    <path android:fillColor="#FFFF453A" android:pathData="M68.1,39.9 L58.6,58.6 L49.4,49.4 Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M39.9,68.1 L58.6,58.6 L49.4,49.4 Z" />
+    <path android:fillColor="#FF0A3FCC" android:pathData="M54,54m-2.4,0a2.4,2.4 0,1 1,4.8 0a2.4,2.4 0,1 1,-4.8 0" />
 </vector>
