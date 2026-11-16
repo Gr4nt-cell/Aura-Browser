@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Glass prism inside the 66dp safe zone -->
+    <path
+        android:fillColor="#E6FFFFFF"
+        android:pathData="M54,30 L80,74 Q82,78 77,78 L31,78 Q26,78 28,74 Z" />
+    <path
+        android:fillColor="#66FFFFFF"
+        android:pathData="M54,30 L54,78 L31,78 Q26,78 28,74 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillAlpha="0.9"
+        android:pathData="M54,30 L62,44 L54,52 L46,44 Z" />
+</vector>
