@@ -22,6 +22,7 @@ public class BrowserActivity extends Activity {
   static final class Tab {
     String id = UUID.randomUUID().toString(), url = "", title = "Start Page";
     boolean home = true, desktop;
+    long pageStartedAt;
     WebView web;
     Bundle state;
     Bitmap preview;
@@ -1019,13 +1020,21 @@ public class BrowserActivity extends Activity {
             if (scheme.equals("http") || scheme.equals("https")) {
               // Page-initiated top-level jumps without a tap to known ad/tracker hosts are
               // usually redirect or pop-under ads. Taps (hasGesture) are never blocked here.
-              if (r.isForMainFrame()
-                  && !r.hasGesture()
-                  && !r.isRedirect()
-                  && blocker.enabled
-                  && blocker.blocks(url, t.url)) {
-                handler.post(() -> toast("Blocked an ad redirect"));
-                return true;
+              if (r.isForMainFrame() && !r.hasGesture() && !r.isRedirect() && blocker.enabled) {
+                boolean justLoaded =
+                    android.os.SystemClock.uptimeMillis() - t.pageStartedAt < 2500;
+                boolean adHost = blocker.blocks(url, t.url);
+                // Script-driven jumps to another site right after a page starts are the usual
+                // pop-under pattern; ad hosts are blocked at any time without a tap.
+                boolean hijack =
+                    justLoaded
+                        && !Blocker.host(url).equals(Blocker.host(t.url))
+                        && !blocker.allowed.contains(Blocker.host(t.url));
+                if (adHost || hijack) {
+                  blocker.blocked.incrementAndGet();
+                  handler.post(() -> toast("Blocked a redirect"));
+                  return true;
+                }
               }
               return false;
             }
@@ -1048,6 +1057,7 @@ public class BrowserActivity extends Activity {
           }
 
           public void onPageStarted(WebView view, String url, Bitmap favicon) {
+            t.pageStartedAt = android.os.SystemClock.uptimeMillis();
             t.home = false;
             t.url = url;
             t.media.clear();
