@@ -509,9 +509,16 @@ h1{font-size:22px;margin:0 0 8px}p{margin:6px 0;opacity:.75;word-break:break-wor
             host?.chooseFiles(params, filePathCallback) ?: run { filePathCallback.onReceiveValue(null); false }
 
         override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean {
-            if (Prefs.blockPopups && !isUserGesture) {
-                tab.blockedCounter.incrementAndGet(); Browser.scheduleBlockedSync(tab)
-                return false
+            if (Prefs.blockPopups && !Prefs.isSiteAllowed(tab.pageHost ?: "")) {
+                val now = System.currentTimeMillis()
+                // A real tap must have happened just now; delayed, dialog-style or rapid-fire windows are pop-ups/pop-unders.
+                val stale = now - tab.lastTouch > 1500
+                val burst = now - tab.lastPopupAt < 2500
+                if (!isUserGesture || isDialog || stale || burst) {
+                    tab.blockedCounter.incrementAndGet(); Browser.scheduleBlockedSync(tab)
+                    return false
+                }
+                tab.lastPopupAt = now
             }
             val transport = resultMsg.obj as? WebView.WebViewTransport ?: return false
             val child = Browser.newTab("", select = false, openerId = tab.id)

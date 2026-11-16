@@ -77,26 +77,50 @@ fun PhoneLayout(ui: UiState) {
     val tab = Browser.current ?: return
     Column(Modifier.fillMaxSize()) {
         ChromeStrip(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars), tab.sample, fromBottom = false)
-        Box(Modifier.weight(1f).fillMaxWidth()) {
-            if (tab.isBlank) StartPage(tab, Form.Phone) else WebHost(tab, Modifier.fillMaxSize())
+        if (tab.isBlank) {
+            // Start page runs underneath the dock: no band at all.
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                StartPage(tab, Form.Phone, bottomInset = 76.dp + 24.dp)
+                Column(Modifier.align(Alignment.BottomCenter)) {
+                    if (ui.find) FindBar(ui, tab)
+                    PhoneBar(ui, tab, transparent = true)
+                }
+            }
+        } else {
+            Box(Modifier.weight(1f).fillMaxWidth()) { WebHost(tab, Modifier.fillMaxSize()) }
+            if (ui.find) FindBar(ui, tab)
+            PhoneBar(ui, tab, transparent = false)
         }
-        if (ui.find) FindBar(ui, tab)
-        PhoneBar(ui, tab)
     }
 }
 
+/** Average colour of the bottom rows of the page sample, so the dock area simply continues the page. */
+private fun edgeColor(sample: ImageBitmap?): Color? {
+    if (sample == null || sample.width < 1 || sample.height < 2) return null
+    return try {
+        val rows = minOf(3, sample.height)
+        val w = sample.width
+        val buf = IntArray(w * rows)
+        sample.readPixels(buf, startX = 0, startY = sample.height - rows, width = w, height = rows)
+        var r = 0L; var g = 0L; var b = 0L
+        for (px in buf) { r += (px shr 16) and 0xFF; g += (px shr 8) and 0xFF; b += px and 0xFF }
+        val n = buf.size
+        Color(red = (r / n).toInt(), green = (g / n).toInt(), blue = (b / n).toInt())
+    } catch (_: Throwable) { null }
+}
+
 @Composable
-private fun PhoneBar(ui: UiState, tab: TabState) {
+private fun PhoneBar(ui: UiState, tab: TabState, transparent: Boolean) {
     val collapsed = Browser.chromeCollapsed && !ui.editing && !tab.isBlank
     val h by animateDpAsState(if (collapsed) 40.dp else 76.dp, tween(220), label = "bar")
-    ChromeStrip(Modifier.fillMaxWidth(), tab.sample, fromBottom = true) {
-        Column {
-            Box(Modifier.fillMaxWidth().height(h), contentAlignment = Alignment.Center) {
-                if (collapsed) CollapsedPill(tab)
-                else ExpandedBar(ui, tab)
-            }
-            Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+    val edge = remember(tab.sample) { edgeColor(tab.sample) }
+    val fallback = Ink.solidBg()
+    val bg by androidx.compose.animation.animateColorAsState(edge ?: fallback, tween(250), label = "dockbg")
+    Column(Modifier.fillMaxWidth().then(if (transparent) Modifier else Modifier.background(bg))) {
+        Box(Modifier.fillMaxWidth().height(h), contentAlignment = Alignment.Center) {
+            if (collapsed) CollapsedPill(tab) else ExpandedBar(ui, tab)
         }
+        Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
     }
 }
 

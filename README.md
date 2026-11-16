@@ -1,4 +1,4 @@
-# Aura Browser 2.0
+# Aura Browser 2.1
 
 A native Android browser written in Kotlin and Jetpack Compose. Package `com.gr4nt.aurabrowser`, Android 8.0+ (API 26), signed with the same development key as earlier releases so it updates 1.x in place.
 

@@ -52,12 +52,16 @@
       return { closed: true, opener: null, focus: function () {}, blur: function () {}, close: function () {},
         postMessage: function () {}, document: d, location: { href: '', assign: function () {}, replace: function () {}, reload: function () {} } };
     };
+    var lastOpen = -1e9;
     window.open = function (url) {
       var u = url ? String(url) : '';
+      var nowT = performance.now();
+      if (nowT - lastOpen < 2500) { report('popup', u); return stub(); }
       var abs = u ? hostOf(u) : '';
       var cross = u && u !== 'about:blank' && abs && reg(abs) !== reg(location.hostname);
       if (!userActive()) { report('popup', u); return stub(); }
       if (cross && !trusted(u) && !userClickedInteractive()) { report('popup', u); return stub(); }
+      lastOpen = nowT;
       return realOpen.apply(window, arguments);
     };
 
@@ -103,6 +107,55 @@
       el.remove();
       report('overlay', target);
     } catch (e) {}
+  }
+
+  /* Full-page invisible / ad iframes and click traps, caught when added, when restyled and under every tap. */
+  function bigFixed(el) {
+    try {
+      var cs = getComputedStyle(el);
+      if (cs.position !== 'fixed' && cs.position !== 'absolute') return null;
+      if (cs.pointerEvents === 'none' || cs.display === 'none' || cs.visibility === 'hidden') return null;
+      var r = el.getBoundingClientRect();
+      if (r.width < innerWidth * 0.8 || r.height < innerHeight * 0.55) return null;
+      return cs;
+    } catch (e) { return null; }
+  }
+  function killTrap(el) {
+    try {
+      if (!el || el.nodeType !== 1 || el === document.body || el === document.documentElement) return false;
+      var cs = bigFixed(el);
+      if (!cs) return false;
+      var transparent = parseFloat(cs.opacity) < 0.08 || /rgba\(.*,\s*0\)|transparent/.test(cs.backgroundColor);
+      var iframe = el.tagName === 'IFRAME' ? el : (el.querySelector ? el.querySelector('iframe') : null);
+      var adFrame = iframe && iframe.src && crossSite(iframe.src) && !trusted(iframe.src);
+      var link = el.tagName === 'A' ? el : (el.querySelector ? el.querySelector('a[href]') : null);
+      var adLink = link && link.href && crossSite(link.href) && !trusted(link.href) && (el.children.length <= 2);
+      if ((transparent && (adFrame || adLink || el.children.length === 0)) || (adFrame && el.tagName === 'IFRAME' && transparent)) {
+        el.remove(); report('overlay', link ? link.href : (iframe ? iframe.src : ''));
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+  if (cfg.popups) {
+    var onTap = function (e) {
+      try {
+        var x = e.clientX, y = e.clientY;
+        if (typeof x !== 'number' || !document.elementsFromPoint) return;
+        var stack = document.elementsFromPoint(x, y);
+        for (var i = 0; i < stack.length && i < 6; i++) {
+          var el = stack[i];
+          if (killTrap(el)) { e.preventDefault(); e.stopImmediatePropagation(); return; }
+        }
+      } catch (err) {}
+    };
+    ['pointerdown', 'touchstart', 'click'].forEach(function (n) { document.addEventListener(n, onTap, true); });
+    setInterval(function () {
+      try {
+        var all = document.querySelectorAll('body > div, body > iframe, body > a, html > div, html > iframe');
+        for (var i = 0; i < all.length; i++) killTrap(all[i]);
+      } catch (e) {}
+    }, 1200);
   }
 
   /* ------------------------------------------------------------------ cosmetic filtering (top frame) */

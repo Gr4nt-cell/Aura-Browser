@@ -43,6 +43,7 @@ class TabState(val id: String = UUID.randomUUID().toString().take(10), initialUr
     @Volatile var pageHost: String? = null
     val blockedCounter = AtomicInteger(0)
     @Volatile var lastTouch = 0L
+    @Volatile var lastPopupAt = 0L
     @Volatile var pageLoadedOnce = false
     @Volatile var currentUA: String = ""
 

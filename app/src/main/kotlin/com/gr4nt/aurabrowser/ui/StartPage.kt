@@ -49,11 +49,11 @@ private val favorites = listOf(
 )
 
 @Composable
-fun StartPage(tab: TabState, form: Form, modifier: Modifier = Modifier) {
+fun StartPage(tab: TabState, form: Form, modifier: Modifier = Modifier, bottomInset: androidx.compose.ui.unit.Dp = 0.dp) {
     val cols = when (form) { Form.Phone -> 4; Form.Tablet -> 6; Form.Desktop -> 8 }
     Box(modifier.fillMaxSize().background(Ink.background()), contentAlignment = Alignment.TopCenter) {
         Column(
-            Modifier.widthIn(max = 760.dp).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 28.dp),
+            Modifier.widthIn(max = 760.dp).fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 22.dp, end = 22.dp, top = 28.dp, bottom = 28.dp + bottomInset),
         ) {
             Text("Favorites", color = Ink.primary(), fontSize = 26.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 14.dp, top = 8.dp))
             val rows = favorites.chunked(cols)

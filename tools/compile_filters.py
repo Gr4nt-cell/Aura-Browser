@@ -182,10 +182,11 @@ def process(path, network=True, cosm=True, hosts=False):
 files = {p.name: p for p in src.glob('*.txt')}
 for name in ['easylist_adservers.txt', 'easylist_general_block.txt', 'easylist_thirdparty.txt',
              'easyprivacy_trackingservers.txt', 'easyprivacy_general.txt', 'adservers.txt', 'filters.txt',
-             'badware.txt', 'unbreak.txt']:
+             'badware.txt', 'unbreak.txt', 'adult_adservers.txt', 'adult_thirdparty.txt',
+             'adult_specific_block.txt', 'resource-abuse.txt']:
     if name in files:
         process(files[name])
-for name in ['easylist_general_hide.txt']:
+for name in ['easylist_general_hide.txt', 'adult_specific_hide.txt']:
     if name in files:
         process(files[name], network=False)
 _cookie_mode = True
@@ -193,7 +194,8 @@ for name in ['easylist_cookie_general_hide.txt']:
     if name in files:
         process(files[name], network=False)
 _cookie_mode = False
-for name in ['easylist_specific_block_popup.txt', 'easylist_thirdparty_popup.txt']:
+for name in ['easylist_specific_block_popup.txt', 'easylist_thirdparty_popup.txt', 'adult_adservers_popup.txt',
+             'adult_specific_block_popup.txt', 'adult_thirdparty_popup.txt']:
     if name in files:
         process(files[name])
 
