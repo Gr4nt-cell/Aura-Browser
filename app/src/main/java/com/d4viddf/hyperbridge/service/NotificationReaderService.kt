@@ -1309,6 +1309,7 @@ class NotificationReaderService : NotificationListenerService() {
     private fun showOnGlassIsland(sbn: StatusBarNotification, recovered: Pair<String, String>? = null) {
         val n = sbn.notification
         if ((n.flags and Notification.FLAG_GROUP_SUMMARY) != 0) return
+        if (com.d4viddf.hyperbridge.overlay.GlassIslandOverlay.isReplyEcho(sbn.key)) return
         val extras = n.extras ?: return
         val isMedia = n.category == Notification.CATEGORY_TRANSPORT || extras.containsKey("android.mediaSession")
         if ((n.flags and Notification.FLAG_ONGOING_EVENT) != 0 && n.category != Notification.CATEGORY_CALL && !isMedia) return
@@ -1346,7 +1347,7 @@ class NotificationReaderService : NotificationListenerService() {
         val sig = "$title|$text"
         val now = System.currentTimeMillis()
         val last = lastOverlayShown[sbn.key]
-        if (last != null && last.first == sig && now - last.second < 2500) return
+        if (!isMedia && last != null && last.first == sig && now - last.second < 2500) return
         lastOverlayShown[sbn.key] = sig to now
 
         val icon = runCatching {
@@ -1359,6 +1360,8 @@ class NotificationReaderService : NotificationListenerService() {
             a.getIcon()?.loadDrawable(pkgCtx)?.toBitmap(72, 72)?.asImageBitmap()
         }.getOrNull()
         val isCallN = n.category == Notification.CATEGORY_CALL || extras.containsKey("android.callType")
+        val appIconBmp = runCatching { packageManager.getApplicationIcon(sbn.packageName).toBitmap(64, 64).asImageBitmap() }.getOrNull()
+        val largeIconBmp = runCatching { n.getLargeIcon()?.loadDrawable(this)?.toBitmap(96, 96)?.asImageBitmap() }.getOrNull()
         val usable = (n.actions ?: emptyArray()).filter { a ->
             a.actionIntent != null && a.remoteInputs.isNullOrEmpty() && (isMedia || !a.title.isNullOrBlank())
         }.take(if (isMedia) 5 else 3)
@@ -1385,10 +1388,27 @@ class NotificationReaderService : NotificationListenerService() {
             if (!incoming && decline == null) decline = all.firstOrNull()?.actionIntent
             com.d4viddf.hyperbridge.overlay.IslandCall(decline, answer, incoming)
         } else null
-        com.d4viddf.hyperbridge.overlay.GlassIslandOverlay.show(
-            this,
-            com.d4viddf.hyperbridge.overlay.IslandItem(sbn.key, getCachedAppLabel(sbn.packageName), title, text, icon, n.contentIntent, actions, sbn.postTime, call, reply, actionIcons, isMedia, art, code),
-        )
+        var mediaPlaying = true
+        var progress: com.d4viddf.hyperbridge.overlay.MediaProgress? = null
+        var mediaArt = art
+        if (isMedia) {
+            runCatching {
+                @Suppress("DEPRECATION")
+                val tok = extras.getParcelable<android.media.session.MediaSession.Token>("android.mediaSession")
+                if (tok != null) {
+                    val ctrl = android.media.session.MediaController(this, tok)
+                    val ps = ctrl.playbackState
+                    val md = ctrl.metadata
+                    mediaPlaying = ps?.state == android.media.session.PlaybackState.STATE_PLAYING || ps?.state == android.media.session.PlaybackState.STATE_BUFFERING
+                    val dur = md?.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION) ?: 0L
+                    if (ps != null) progress = com.d4viddf.hyperbridge.overlay.MediaProgress(ps.position, dur, ps.lastPositionUpdateTime, ps.playbackSpeed, mediaPlaying)
+                    if (mediaArt == null) mediaArt = (md?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART) ?: md?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART))?.asImageBitmap()
+                }
+            }
+        }
+        val islandItem = com.d4viddf.hyperbridge.overlay.IslandItem(sbn.key, getCachedAppLabel(sbn.packageName), title, text, icon, n.contentIntent, actions, sbn.postTime, call, reply, actionIcons, isMedia, mediaArt, code, progress, appIconBmp, largeIconBmp)
+        if (isMedia) com.d4viddf.hyperbridge.overlay.GlassIslandOverlay.updateMedia(this, islandItem, mediaPlaying)
+        else com.d4viddf.hyperbridge.overlay.GlassIslandOverlay.show(this, islandItem)
     }
 
     private var headsUpSuppressed = false
