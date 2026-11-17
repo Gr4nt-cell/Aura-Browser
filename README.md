@@ -1,4 +1,6 @@
-# Aura Browser 2.7
+# Aura Browser 2.8
+
+Version 2.8 introduces the luminous glass Aura ribbon launcher icon, padded for Android adaptive launcher masks.
 
 A native Android browser written in Kotlin and Jetpack Compose. Package `com.gr4nt.aurabrowser`, Android 8.0+ (API 26), signed with the same development key as earlier releases so it updates 1.x in place.
 

@@ -14,8 +14,8 @@ android {
         applicationId = "com.gr4nt.aurabrowser"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
-        versionName = "2.7"
+        versionCode = 13
+        versionName = "2.8"
     }
 
     val keystorePath: String? = System.getenv("ANDROID_KEYSTORE_PATH")
