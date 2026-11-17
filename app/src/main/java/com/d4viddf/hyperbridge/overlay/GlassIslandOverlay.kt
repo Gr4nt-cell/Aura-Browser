@@ -615,9 +615,12 @@ object GlassIslandOverlay {
     @Composable
     private fun CallCard(item: IslandItem, topPad: Dp) {
         val call = item.call ?: return
-        Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = ((layout.bottomPad - 4).coerceAtLeast(6) * 100f / layout.scalePct).dp)) {
-            Spacer(Modifier.height(topPad + (layout.belowCam * 100f / layout.scalePct).dp + 2.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        // the avatar and buttons sit beside the camera, so no camera band is reserved: centre them in the pill, inset from the rounded ends
+        Box(
+            Modifier.fillMaxWidth().heightIn(min = topPad + (layout.belowCam * 100f / layout.scalePct).dp + 22.dp).padding(horizontal = 26.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 val initial = item.title.trim().firstOrNull { it.isLetter() }?.uppercase()
                 Box(
                     Modifier.size(42.dp).clip(CircleShape).background(Brush.verticalGradient(listOf(Color(0xFF8E8E93), Color(0xFF636366)))),
