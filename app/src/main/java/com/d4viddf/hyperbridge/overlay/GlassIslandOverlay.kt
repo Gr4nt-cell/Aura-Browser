@@ -38,11 +38,17 @@ import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Delete
@@ -148,6 +154,29 @@ private class OverlayOwner : LifecycleOwner, SavedStateRegistryOwner, ViewModelS
  */
 data class IslandLayout(val left: Int = 10, val right: Int = 10, val topGap: Int = 2, val bottomPad: Int = 16, val scalePct: Int = 100, val radius: Int = 44, val belowCam: Int = 2, val durationSec: Int = 6, val glow: Boolean = true, val timerBar: Boolean = false, val rTR: Int = 44, val rBL: Int = 44, val rBR: Int = 44)
 
+/** Thin-stroke, rounded icons drawn for the island (SF-Symbols-like) instead of the chunky stock glyphs. */
+private object IslandIcons {
+    val Reply: ImageVector by lazy {
+        ImageVector.Builder("reply", 24.dp, 24.dp, 24f, 24f).apply {
+            path(stroke = SolidColor(Color.Black), strokeLineWidth = 1.9f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+                moveTo(9.6f, 4.9f); lineTo(4.5f, 10f); lineTo(9.6f, 15.1f)
+                moveTo(4.9f, 10f); horizontalLineTo(13.6f)
+                curveTo(17.1f, 10f, 19.6f, 12.5f, 19.6f, 16f); verticalLineTo(18.7f)
+            }
+        }.build()
+    }
+    val Eye: ImageVector by lazy {
+        ImageVector.Builder("eye", 24.dp, 24.dp, 24f, 24f).apply {
+            path(stroke = SolidColor(Color.Black), strokeLineWidth = 1.8f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+                moveTo(2.4f, 12f)
+                curveTo(4.6f, 7.9f, 8.1f, 5.8f, 12f, 5.8f); curveTo(15.9f, 5.8f, 19.4f, 7.9f, 21.6f, 12f)
+                curveTo(19.4f, 16.1f, 15.9f, 18.2f, 12f, 18.2f); curveTo(8.1f, 18.2f, 4.6f, 16.1f, 2.4f, 12f); close()
+                moveTo(15f, 12f); arcTo(3f, 3f, 0f, true, true, 9f, 12f); arcTo(3f, 3f, 0f, true, true, 15f, 12f); close()
+            }
+        }.build()
+    }
+}
+
 object GlassIslandOverlay {
     private var layout = IslandLayout()
 
@@ -170,6 +199,7 @@ object GlassIslandOverlay {
     private var visible by mutableStateOf(false)
     private var replying by mutableStateOf(false)
     private var winWpx by mutableStateOf(0)
+    private var winTopDp by mutableStateOf(0f)
     private var mediaItem: IslandItem? = null
     private val repliedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
@@ -345,6 +375,7 @@ object GlassIslandOverlay {
         }
 
         winWpx = screenW - leftPx - rightPx
+        winTopDp = winTopPx / density
         val lp = WindowManager.LayoutParams(
             screenW - leftPx - rightPx,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -376,7 +407,15 @@ object GlassIslandOverlay {
                 val k = layout.scalePct / 100f
                 androidx.compose.runtime.CompositionLocalProvider(
                     androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(base.density * k, base.fontScale)
-                ) { if (item != null) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) { IslandContent(item) } }
+                ) {
+                    if (item != null) {
+                        val off by androidx.compose.animation.core.animateDpAsState(
+                            if (item.media && !expanded) ((10f - winTopDp).coerceAtLeast(0f) / k).dp else 0.dp,
+                            spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow), label = "off",
+                        )
+                        Box(Modifier.fillMaxWidth().padding(top = off), contentAlignment = Alignment.TopCenter) { IslandContent(item) }
+                    }
+                }
             }
         }
         view = cv
@@ -403,7 +442,7 @@ object GlassIslandOverlay {
         val vis = visible
         val compact = item.media && !big
         val fullW = with(androidx.compose.ui.platform.LocalDensity.current) { winWpx.toDp() }
-        val compactW = (if (ctxW > 0.dp) ctxW else 64.dp) + 92.dp
+        val compactW = 106.dp / (layout.scalePct / 100f) // same footprint as the HyperOS music pill
         val animW by androidx.compose.animation.core.animateDpAsState(if (compact) compactW else fullW, spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow), label = "w")
         val widthMod = if (winWpx > 0) Modifier.width(animW) else Modifier.fillMaxWidth()
         LaunchedEffect(vis, item.key) {
@@ -524,7 +563,9 @@ object GlassIslandOverlay {
     private fun iconFor(label: String): androidx.compose.ui.graphics.vector.ImageVector? {
         val l = label.lowercase()
         return when {
-            Regex("mark.*read|^read|done|complete").containsMatchIn(l) -> Icons.Filled.Check
+            Regex("^reply|respond").containsMatchIn(l) -> IslandIcons.Reply
+            Regex("mark.*read|^read").containsMatchIn(l) -> IslandIcons.Eye
+            Regex("done|complete").containsMatchIn(l) -> Icons.Filled.Check
             Regex("archiv").containsMatchIn(l) -> Icons.Filled.Archive
             Regex("delet|trash|remove").containsMatchIn(l) -> Icons.Filled.Delete
             Regex("snooze|later|remind").containsMatchIn(l) -> Icons.Filled.Snooze
@@ -543,6 +584,10 @@ object GlassIslandOverlay {
     @Composable
     private fun ActionLabel(label: String, icon: ImageBitmap?, tint: Color) {
         val vec = iconFor(label)
+        if (vec === IslandIcons.Eye || vec === IslandIcons.Reply) {
+            androidx.compose.material3.Icon(vec, label, tint = tint, modifier = Modifier.size(24.dp))
+            return
+        }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.padding(horizontal = 10.dp)) {
             if (vec != null) androidx.compose.material3.Icon(vec, null, tint = tint, modifier = Modifier.size(16.dp))
             else if (icon != null) Image(icon, null, Modifier.size(16.dp), colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(tint))
@@ -552,26 +597,28 @@ object GlassIslandOverlay {
     }
 
     @Composable
-    private fun EqBars(color: Color, height: Dp = 22.dp) {
+    private fun EqBars(color: Color, height: Dp = 22.dp, barW: Dp = 3.5.dp, gap: Dp = 3.dp) {
         val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "eq")
         val hs = listOf(520, 380, 640, 450).mapIndexed { i, d ->
             t.animateFloat(0.25f, 1f, androidx.compose.animation.core.infiniteRepeatable(tween(d, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse, androidx.compose.animation.core.StartOffset(i * 90)), label = "b$i")
         }
-        Row(Modifier.height(height), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.Bottom) {
-            hs.forEach { h -> Box(Modifier.width(3.5.dp).fillMaxHeight(h.value).clip(CircleShape).background(color)) }
+        Row(Modifier.height(height), horizontalArrangement = Arrangement.spacedBy(gap), verticalAlignment = Alignment.Bottom) {
+            hs.forEach { h -> Box(Modifier.width(barW).fillMaxHeight(h.value).clip(CircleShape).background(color)) }
         }
     }
 
     @Composable
     private fun CompactMedia(item: IslandItem, topPad: Dp, accent: Color) {
-        Row(Modifier.fillMaxWidth().height(topPad + 2.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        val k = layout.scalePct / 100f
+        // measured off the HyperOS pill: about 106 x 33 dp, thumbnail left, level bars right, camera in the middle
+        Row(Modifier.fillMaxWidth().height(33.dp / k).padding(start = 9.dp / k, end = 10.dp / k), verticalAlignment = Alignment.CenterVertically) {
             val art = item.art ?: item.icon
-            Box(Modifier.size(22.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFF2C2C2E)), contentAlignment = Alignment.Center) {
-                if (art != null) Image(art, null, Modifier.size(22.dp), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
-                else androidx.compose.material3.Icon(Icons.Filled.MusicNote, null, tint = IosGray, modifier = Modifier.size(14.dp))
+            Box(Modifier.size(22.dp / k, 15.dp / k).clip(RoundedCornerShape(4.dp / k)).background(Color(0xFF2C2C2E)), contentAlignment = Alignment.Center) {
+                if (art != null) Image(art, null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                else androidx.compose.material3.Icon(Icons.Filled.MusicNote, null, tint = IosGray, modifier = Modifier.size(11.dp / k))
             }
             Spacer(Modifier.weight(1f))
-            EqBars(accent, 16.dp)
+            EqBars(accent, 14.dp / k, 2.5.dp / k, 2.dp / k)
         }
     }
 
@@ -743,11 +790,7 @@ object GlassIslandOverlay {
                                 .clickable { replying = true; hideJob?.cancel() },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.Reply, null, tint = rFg, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
-                                BasicText(reply.label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(color = rFg, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp))
-                            }
+                            androidx.compose.material3.Icon(IslandIcons.Reply, reply.label, tint = rFg, modifier = Modifier.size(24.dp))
                         }
                     }
                     item.actions.take((2 - (if (reply != null) 1 else 0) - (if (item.code != null) 1 else 0)).coerceAtLeast(0)).forEachIndexed { i, (label, pi) ->
