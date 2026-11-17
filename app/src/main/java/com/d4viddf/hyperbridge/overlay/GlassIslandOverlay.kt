@@ -38,6 +38,8 @@ import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.ui.draw.blur
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -406,33 +408,38 @@ object GlassIslandOverlay {
         val widthMod = if (winWpx > 0) Modifier.width(animW) else Modifier.fillMaxWidth()
         LaunchedEffect(vis, item.key) {
             if (vis) {
-                reveal.animateTo(1f, spring(dampingRatio = 0.66f, stiffness = 320f))
+                reveal.animateTo(1f, spring(dampingRatio = 0.74f, stiffness = 420f))
             } else {
-                reveal.animateTo(0f, tween(620, easing = CubicBezierEasing(0.5f, 0f, 0.2f, 1f)))
+                reveal.animateTo(0f, tween(400, easing = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)))
                 finish()
             }
         }
         var drag by remember(item.key) { mutableStateOf(0f) }
+        var dragging by remember(item.key) { mutableStateOf(false) }
+        val dragY by androidx.compose.animation.core.animateFloatAsState(drag, if (dragging) androidx.compose.animation.core.snap() else spring(dampingRatio = 0.7f, stiffness = 500f), label = "drag")
         val click = remember { MutableInteractionSource() }
 
         Box(
             Modifier
                 .graphicsLayer {
-                    translationY = drag.coerceAtMost(0f)
+                    translationY = dragY.coerceAtMost(0f) - 6.dp.toPx() * (1f - reveal.value).coerceIn(0f, 1f)
                     val r = reveal.value
                     // grows out of / melts back into the camera at the top centre
                     transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
-                    scaleX = 0.14f + 0.86f * r
-                    scaleY = 0.07f + 0.93f * r
-                    alpha = (r * 3f).coerceIn(0f, 1f)
+                    scaleX = 0.26f + 0.74f * r
+                    scaleY = 0.15f + 0.85f * r
+                    alpha = (r * 4f).coerceIn(0f, 1f)
                 }
                 .then(widthMod)
                 .animateContentSize(spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow))
                 .clip(shape)
-                .background(Color.Black.copy(alpha = if (big && item.call == null) 0.84f else 1f))
+                .background(Color.Black.copy(alpha = if (big && item.call == null) 0.95f else 1f))
                 .pointerInput(item.key) {
                     detectVerticalDragGestures(
+                        onDragStart = { dragging = true },
+                        onDragCancel = { dragging = false; drag = 0f },
                         onDragEnd = {
+                            dragging = false
                             if (drag < -40f) {
                                 if (item.media && big) { hideJob?.cancel(); expanded = false; drag = 0f }
                                 else { if (item.media) { mediaDismissed = true; mediaItem = null }; hide() }
@@ -467,17 +474,21 @@ object GlassIslandOverlay {
             if (big && item.call == null) {
                 // frosted, art-tinted glass: the cover blown up and blurred behind a dark scrim
                 val a = item.art
-                if (a != null) Image(a, null, Modifier.matchParentSize().graphicsLayer { scaleX = 1.6f; scaleY = 1.6f }.blur(44.dp, androidx.compose.ui.draw.BlurredEdgeTreatment.Unbounded), contentScale = androidx.compose.ui.layout.ContentScale.Crop, alpha = 0.55f)
-                Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.10f), Color.Black.copy(alpha = 0.30f)))))
+                if (a != null) Image(a, null, Modifier.matchParentSize().graphicsLayer { scaleX = 1.6f; scaleY = 1.6f }.blur(44.dp, androidx.compose.ui.draw.BlurredEdgeTreatment.Unbounded), contentScale = androidx.compose.ui.layout.ContentScale.Crop, alpha = 0.34f)
+                Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.05f), Color.Black.copy(alpha = 0.38f)))))
             }
             Box(Modifier.graphicsLayer {
                 val c = ((reveal.value - 0.4f) * 2.0f).coerceIn(0f, 1f)
-                alpha = c; scaleX = 0.94f + 0.06f * c; scaleY = 0.94f + 0.06f * c
+                alpha = c; scaleX = 0.92f + 0.08f * c; scaleY = 0.92f + 0.08f * c; translationY = (1f - c) * 10.dp.toPx()
                 transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
             }) {
                 when {
                     item.call != null -> CallCard(item, topPad)
-                    item.media -> if (big) MediaCard(item, topPad, accent) else CompactMedia(item, topPad, accent)
+                    item.media -> androidx.compose.animation.AnimatedContent(
+                        targetState = big,
+                        transitionSpec = { androidx.compose.animation.fadeIn(tween(260, delayMillis = 110)) togetherWith androidx.compose.animation.fadeOut(tween(120)) },
+                        label = "media",
+                    ) { b -> if (b) MediaCard(item, topPad, accent) else CompactMedia(item, topPad, accent) }
                     !big -> SmallRow(item, topPad, ctxW)
                     else -> LargeCard(item, topPad, accent)
                 }
@@ -595,7 +606,7 @@ object GlassIslandOverlay {
                         val ic = item.icons.getOrNull(i)
                         val vec = iconFor(label)
                         Box(
-                            Modifier.size(if (big) 46.dp else 40.dp).clip(CircleShape).clickable { try { pi.send() } catch (_: Exception) {}; scheduleHide() },
+                            Modifier.bounce { try { pi.send() } catch (_: Exception) {}; scheduleHide() }.size(if (big) 46.dp else 40.dp).clip(CircleShape),
                             contentAlignment = Alignment.Center,
                         ) {
                             val sz = if (big) 32.dp else 26.dp
@@ -623,6 +634,14 @@ object GlassIslandOverlay {
                 }
             }
         }
+    }
+
+    @Composable
+    private fun Modifier.bounce(enabled: Boolean = true, onClick: () -> Unit): Modifier {
+        val src = remember { MutableInteractionSource() }
+        val pressed by src.collectIsPressedAsState()
+        val sc by androidx.compose.animation.core.animateFloatAsState(if (pressed) 0.88f else 1f, spring(dampingRatio = 0.5f, stiffness = 600f), label = "press")
+        return this.graphicsLayer { scaleX = sc; scaleY = sc }.clickable(interactionSource = src, indication = null, enabled = enabled, onClick = onClick)
     }
 
     private val IosGray = Color(0xFF9A9AA0)
@@ -733,8 +752,7 @@ object GlassIslandOverlay {
                     }
                     item.actions.take((2 - (if (reply != null) 1 else 0) - (if (item.code != null) 1 else 0)).coerceAtLeast(0)).forEachIndexed { i, (label, pi) ->
                         Box(
-                            Modifier.weight(1f).height(38.dp).clip(CircleShape).background(IosFill)
-                                .clickable { try { pi.send() } catch (_: Exception) {}; hide() },
+                            Modifier.weight(1f).bounce { try { pi.send() } catch (_: Exception) {}; hide() }.height(38.dp).clip(CircleShape).background(IosFill),
                             contentAlignment = Alignment.Center,
                         ) {
                             ActionLabel(label, item.icons.getOrNull(i), Color.White)
@@ -787,7 +805,7 @@ object GlassIslandOverlay {
     @Composable
     private fun CallButton(color: Color, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
         Box(
-            Modifier.size(42.dp).clip(CircleShape).background(color).clickable(onClick = onClick),
+            Modifier.bounce(onClick = onClick).size(42.dp).clip(CircleShape).background(color),
             contentAlignment = Alignment.Center,
         ) { androidx.compose.material3.Icon(icon, null, tint = Color.White, modifier = Modifier.size(26.dp)) }
     }
