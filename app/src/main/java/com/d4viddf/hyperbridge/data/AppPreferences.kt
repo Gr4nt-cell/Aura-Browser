@@ -481,6 +481,12 @@ class AppPreferences(context: Context) {
     val islandRadius: Flow<Int> = dao.getSettingFlow("island_radius").map { it?.toIntOrNull() ?: 34 }
     val islandBelowCam: Flow<Int> = dao.getSettingFlow("island_below_cam").map { it?.toIntOrNull() ?: 2 }
     suspend fun setIslandBelowCam(v: Int) = save("island_below_cam", v.toString())
+    val islandDuration: Flow<Int> = dao.getSettingFlow("island_duration").map { it?.toIntOrNull() ?: 6 }
+    val islandGlow: Flow<Int> = dao.getSettingFlow("island_glow").map { it?.toIntOrNull() ?: 1 }
+    val islandTimer: Flow<Int> = dao.getSettingFlow("island_timer").map { it?.toIntOrNull() ?: 1 }
+    suspend fun setIslandDuration(v: Int) = save("island_duration", v.toString())
+    suspend fun setIslandGlow(v: Boolean) = save("island_glow", if (v) "1" else "0")
+    suspend fun setIslandTimer(v: Boolean) = save("island_timer", if (v) "1" else "0")
     suspend fun setIslandScale(v: Int) = save("island_scale", v.toString())
     suspend fun setIslandRadius(v: Int) = save("island_radius", v.toString())
     suspend fun setIslandMarginLeft(v: Int) = save("island_margin_left", v.toString())

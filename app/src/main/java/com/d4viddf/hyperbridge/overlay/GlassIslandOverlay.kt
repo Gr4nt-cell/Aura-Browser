@@ -27,6 +27,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.material.icons.automirrored.filled.Reply
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CallEnd
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -85,7 +94,12 @@ data class IslandItem(
     val contentIntent: PendingIntent?,
     val actions: List<Pair<String, PendingIntent>>,
     val whenMs: Long,
+    val call: IslandCall? = null,
+    val reply: IslandReply? = null,
 )
+
+data class IslandCall(val decline: PendingIntent?, val answer: PendingIntent?, val incoming: Boolean)
+class IslandReply(val label: String, val pi: PendingIntent, val inputs: Array<android.app.RemoteInput>)
 
 private class OverlayOwner : LifecycleOwner, SavedStateRegistryOwner, ViewModelStoreOwner {
     private val registry = LifecycleRegistry(this)
@@ -102,7 +116,7 @@ private class OverlayOwner : LifecycleOwner, SavedStateRegistryOwner, ViewModelS
  * camera cut-out, so the island always wraps the camera: a one-row pill ("small expanded") that grows into a larger
  * rounded card ("large expanded") when tapped.
  */
-data class IslandLayout(val left: Int = 10, val right: Int = 10, val topGap: Int = 2, val bottomPad: Int = 16, val scalePct: Int = 100, val radius: Int = 34, val belowCam: Int = 2)
+data class IslandLayout(val left: Int = 10, val right: Int = 10, val topGap: Int = 2, val bottomPad: Int = 16, val scalePct: Int = 100, val radius: Int = 34, val belowCam: Int = 2, val durationSec: Int = 6, val glow: Boolean = true, val timerBar: Boolean = true)
 
 object GlassIslandOverlay {
     private var layout = IslandLayout()
@@ -124,6 +138,7 @@ object GlassIslandOverlay {
     private var current by mutableStateOf<IslandItem?>(null)
     private var expanded by mutableStateOf(true)
     private var visible by mutableStateOf(false)
+    private var replying by mutableStateOf(false)
     private val reveal = Animatable(0f)
     private var hideJob: Job? = null
     private var cutoutW by mutableStateOf(0.dp)
@@ -134,11 +149,17 @@ object GlassIslandOverlay {
             if (!canDraw(ctx)) return@launch
             val host: Context = IslandAccessibilityService.instance ?: return@launch
             ensureWindow(host)
+            if (current?.key != item.key) replying = false
             current = item
             expanded = true
             visible = true
-            scheduleHide()
+            if (item.call?.incoming == true) hideJob?.cancel() else if (!replying) scheduleHide()
         }
+    }
+
+    /** A call notification went away (answered, declined, missed): take its island down. */
+    fun dismissCall(key: String) {
+        scope.launch { val c = current; if (c != null && c.key == key && c.call != null) hide() }
     }
 
     fun dismiss(key: String? = null) {
@@ -148,8 +169,8 @@ object GlassIslandOverlay {
     private fun scheduleHide() {
         hideJob?.cancel()
         hideJob = scope.launch {
-            delay(6_500)
-            hide()
+            delay(layout.durationSec * 1000L)
+            if (!replying) hide()
         }
     }
 
@@ -160,7 +181,50 @@ object GlassIslandOverlay {
         visible = false
     }
 
+    private fun setFocusable(f: Boolean) {
+        val lp = params ?: return
+        val v = view ?: return
+        lp.flags = if (f) lp.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv() else lp.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+        try { wm?.updateViewLayout(v, lp) } catch (_: Exception) {}
+    }
+
+    private fun sendReply(r: IslandReply, text: String) {
+        val ctx = IslandAccessibilityService.instance ?: return
+        val intent = android.content.Intent()
+        val bundle = android.os.Bundle()
+        r.inputs.forEach { bundle.putCharSequence(it.resultKey, text) }
+        android.app.RemoteInput.addResultsToIntent(r.inputs, intent, bundle)
+        if (Build.VERSION.SDK_INT >= 28) android.app.RemoteInput.setResultsSource(intent, android.app.RemoteInput.SOURCE_FREE_FORM_INPUT)
+        try { r.pi.send(ctx, 0, intent) } catch (_: Exception) {}
+        replying = false
+        hide()
+    }
+
+    private fun accentOf(icon: ImageBitmap?): Color {
+        val fallback = Color(0xFF7DB3FF)
+        if (icon == null) return fallback
+        return runCatching {
+            val bm = android.graphics.Bitmap.createScaledBitmap(icon.asAndroidBitmap(), 24, 24, true)
+            var r = 0f; var g = 0f; var b = 0f; var wsum = 0f
+            val hsv = FloatArray(3)
+            for (x in 0 until 24) for (y in 0 until 24) {
+                val px = bm.getPixel(x, y)
+                if (android.graphics.Color.alpha(px) < 200) continue
+                android.graphics.Color.colorToHSV(px, hsv)
+                val w = hsv[1] * hsv[2] * hsv[2]
+                r += android.graphics.Color.red(px) * w; g += android.graphics.Color.green(px) * w; b += android.graphics.Color.blue(px) * w; wsum += w
+            }
+            if (wsum < 0.5f) fallback else {
+                val c = android.graphics.Color.rgb((r / wsum).toInt(), (g / wsum).toInt(), (b / wsum).toInt())
+                android.graphics.Color.colorToHSV(c, hsv)
+                hsv[1] = hsv[1].coerceIn(0.45f, 0.9f); hsv[2] = hsv[2].coerceIn(0.75f, 1f)
+                Color(android.graphics.Color.HSVToColor(hsv))
+            }
+        }.getOrDefault(fallback)
+    }
+
     private fun finish() {
+        replying = false
         current = null
         removeWindow()
     }
@@ -270,7 +334,6 @@ object GlassIslandOverlay {
                 }
                 .fillMaxWidth()
                 .animateContentSize(spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow))
-                .shadow(18.dp, shape, ambientColor = Color.Black.copy(alpha = 0.35f), spotColor = Color.Black.copy(alpha = 0.5f))
                 .clip(shape)
                 .background(Color(0xFF0B0B0F))
                 .pointerInput(item.key) {
@@ -279,19 +342,42 @@ object GlassIslandOverlay {
                         onVerticalDrag = { _, dy -> drag += dy },
                     )
                 }
-                .clickable(interactionSource = click, indication = null) {
+                .clickable(interactionSource = click, indication = null, enabled = !replying) {
                     try { item.contentIntent?.send() } catch (_: Exception) {}
                     hide()
                 },
         ) {
-            // glass sheen + rim
-            Canvas(Modifier.matchParentSize()) {
-                drawRect(Brush.linearGradient(listOf(Color.White.copy(alpha = 0.07f), Color.Transparent, Color.White.copy(alpha = 0.02f)), Offset.Zero, Offset(size.width, size.height)))
+            val accent = remember(item.key, item.icon) { if (item.call != null) Color(0xFF34C759) else accentOf(item.icon) }
+            val glow = layout.glow
+            val timer = remember(item.key) { Animatable(1f) }
+            val autoHide = item.call?.incoming != true
+            LaunchedEffect(item.key, replying, vis) {
+                if (vis && autoHide && !replying && layout.timerBar) {
+                    timer.snapTo(1f)
+                    timer.animateTo(0f, tween(layout.durationSec * 1000, easing = androidx.compose.animation.core.LinearEasing))
+                }
             }
-            Box(Modifier.matchParentSize().border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.45f), Color.White.copy(alpha = 0.06f), Color.White.copy(alpha = 0.22f))), shape))
+            // glass sheen, accent glow behind the icon, rim light
+            Canvas(Modifier.matchParentSize()) {
+                drawRect(Brush.linearGradient(listOf(Color.White.copy(alpha = 0.06f), Color.Transparent, Color.White.copy(alpha = 0.015f)), Offset.Zero, Offset(size.width, size.height)))
+                if (glow) {
+                    drawRect(Brush.radialGradient(listOf(accent.copy(alpha = 0.34f), Color.Transparent), Offset(size.width * 0.12f, size.height * 0.62f), size.width * 0.62f))
+                    drawRect(Brush.radialGradient(listOf(accent.copy(alpha = 0.14f), Color.Transparent), Offset(size.width * 0.95f, size.height * 0.05f), size.width * 0.5f))
+                }
+            }
+            Box(Modifier.matchParentSize().border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.40f), accent.copy(alpha = 0.22f), Color.White.copy(alpha = 0.10f))), shape))
 
             Box(Modifier.graphicsLayer { alpha = ((reveal.value - 0.45f) * 2.2f).coerceIn(0f, 1f) }) {
-                if (!big) SmallRow(item, topPad, ctxW) else LargeCard(item, topPad)
+                when {
+                    item.call != null -> CallCard(item, topPad)
+                    !big -> SmallRow(item, topPad, ctxW)
+                    else -> LargeCard(item, topPad, accent)
+                }
+            }
+            if (layout.timerBar && autoHide && !replying) {
+                Box(Modifier.align(Alignment.BottomStart).padding(horizontal = 22.dp).padding(bottom = 5.dp).fillMaxWidth().height(2.5.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.08f))) {
+                    Box(Modifier.fillMaxWidth(timer.value).height(2.5.dp).clip(CircleShape).background(accent.copy(alpha = 0.85f)))
+                }
             }
         }
     }
@@ -316,30 +402,82 @@ object GlassIslandOverlay {
         }
     }
 
+    @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
     @Composable
-    private fun LargeCard(item: IslandItem, topPad: Dp) {
+    private fun LargeCard(item: IslandItem, topPad: Dp, accent: Color) {
         Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = (layout.bottomPad * 100f / layout.scalePct).dp)) {
             Spacer(Modifier.height(topPad + (layout.belowCam * 100f / layout.scalePct).dp)) // camera zone
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AppIcon(item.icon, 34.dp)
-                Spacer(Modifier.width(10.dp))
+                Box(Modifier.size(40.dp).clip(RoundedCornerShape(11.dp)).border(1.dp, accent.copy(alpha = 0.55f), RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) {
+                    AppIcon(item.icon, 38.dp)
+                }
+                Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    BasicText(item.appName, maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp))
-                    BasicText(item.title, maxLines = 2, overflow = TextOverflow.Ellipsis, style = TextStyle(color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold))
+                    BasicText(item.appName.uppercase(), maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(color = accent.copy(alpha = 0.95f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.8.sp))
+                    BasicText(item.title, maxLines = 2, overflow = TextOverflow.Ellipsis, style = TextStyle(color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold))
                 }
             }
             if (item.text.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
-                BasicText(item.text, maxLines = 5, overflow = TextOverflow.Ellipsis, style = TextStyle(color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp, lineHeight = 19.sp))
+                BasicText(item.text, maxLines = 5, overflow = TextOverflow.Ellipsis, style = TextStyle(color = Color.White.copy(alpha = 0.86f), fontSize = 14.sp, lineHeight = 19.sp))
             }
-            if (item.actions.isNotEmpty()) {
+            val reply = item.reply
+            if (replying && reply != null) {
+                Spacer(Modifier.height(12.dp))
+                var input by remember(item.key) { mutableStateOf("") }
+                val fr = remember { androidx.compose.ui.focus.FocusRequester() }
+                val kb = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+                LaunchedEffect(Unit) {
+                    setFocusable(true)
+                    delay(120)
+                    runCatching { fr.requestFocus() }
+                    kb?.show()
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = input, onValueChange = { input = it },
+                        modifier = Modifier.weight(1f).heightIn(min = 44.dp).clip(RoundedCornerShape(22.dp)).background(Color.White.copy(alpha = 0.12f))
+                            .border(0.8.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(22.dp)).padding(horizontal = 16.dp, vertical = 12.dp)
+                            .focusRequester(fr),
+                        textStyle = TextStyle(color = Color.White, fontSize = 15.sp),
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(accent),
+                        maxLines = 4,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Send),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSend = { if (input.isNotBlank()) sendReply(reply, input.trim()) }),
+                        decorationBox = { inner ->
+                            if (input.isEmpty()) BasicText("Reply to ${item.title}…", maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(color = Color.White.copy(alpha = 0.45f), fontSize = 15.sp))
+                            inner()
+                        },
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Box(
+                        Modifier.size(44.dp).clip(CircleShape).background(accent.copy(alpha = if (input.isBlank()) 0.35f else 0.95f))
+                            .clickable(enabled = input.isNotBlank()) { sendReply(reply, input.trim()) },
+                        contentAlignment = Alignment.Center,
+                    ) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.Send, null, tint = Color.Black, modifier = Modifier.size(22.dp)) }
+                }
+            } else if (item.actions.isNotEmpty() || reply != null) {
                 Spacer(Modifier.height(14.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    item.actions.take(3).forEach { (label, pi) ->
+                    if (reply != null) {
                         Box(
-                            Modifier.weight(1f).height(38.dp).clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.14f))
-                                .border(0.8.dp, Color.White.copy(alpha = 0.28f), CircleShape)
+                            Modifier.weight(1f).height(40.dp).clip(CircleShape)
+                                .background(accent.copy(alpha = 0.92f))
+                                .clickable { replying = true; hideJob?.cancel() },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.Reply, null, tint = Color.Black, modifier = Modifier.size(17.dp))
+                                Spacer(Modifier.width(6.dp))
+                                BasicText(reply.label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
+                            }
+                        }
+                    }
+                    item.actions.take(if (reply != null) 2 else 3).forEach { (label, pi) ->
+                        Box(
+                            Modifier.weight(1f).height(40.dp).clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.13f))
+                                .border(0.8.dp, Color.White.copy(alpha = 0.26f), CircleShape)
                                 .clickable { try { pi.send() } catch (_: Exception) {}; hide() },
                             contentAlignment = Alignment.Center,
                         ) {
@@ -349,6 +487,45 @@ object GlassIslandOverlay {
                 }
             }
         }
+    }
+
+    @Composable
+    private fun CallCard(item: IslandItem, topPad: Dp) {
+        val call = item.call ?: return
+        Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = (layout.bottomPad * 100f / layout.scalePct).dp)) {
+            Spacer(Modifier.height(topPad + (layout.belowCam * 100f / layout.scalePct).dp + 2.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(52.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.10f)), contentAlignment = Alignment.Center) {
+                    if (item.icon != null) Image(item.icon, null, Modifier.size(52.dp).clip(CircleShape))
+                    else androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.Person, null, tint = Color.White, modifier = Modifier.size(30.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    BasicText(item.title.ifBlank { item.appName }, maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold))
+                    BasicText(
+                        item.text.ifBlank { if (call.incoming) "Incoming Call" else "Ongoing call" }, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        style = TextStyle(color = Color.White.copy(alpha = 0.65f), fontSize = 14.sp),
+                    )
+                }
+                if (call.decline != null) CallButton(Color(0xFFE94B3C), androidx.compose.material.icons.Icons.Default.CallEnd) {
+                    try { call.decline.send() } catch (_: Exception) {}; hide()
+                }
+                if (call.incoming && call.answer != null) {
+                    Spacer(Modifier.width(14.dp))
+                    CallButton(Color(0xFF34C759), androidx.compose.material.icons.Icons.Default.Call) {
+                        try { call.answer.send() } catch (_: Exception) {}; hide()
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun CallButton(color: Color, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+        Box(
+            Modifier.size(54.dp).clip(CircleShape).background(color).clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) { androidx.compose.material3.Icon(icon, null, tint = Color.White, modifier = Modifier.size(28.dp)) }
     }
 
     @Composable

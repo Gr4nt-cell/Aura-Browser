@@ -79,6 +79,9 @@ fun RootAndIslandSection(prefs: AppPreferences, showXmsfWorkaround: Boolean = tr
     val scalePct by prefs.islandScale.collectAsState(initial = 100)
     val radius by prefs.islandRadius.collectAsState(initial = 34)
     val belowCam by prefs.islandBelowCam.collectAsState(initial = 2)
+    val duration by prefs.islandDuration.collectAsState(initial = 6)
+    val glowOn by prefs.islandGlow.collectAsState(initial = 1)
+    val timerOn by prefs.islandTimer.collectAsState(initial = 1)
 
     Column(Modifier.fillMaxWidth()) {
         // --- root status
@@ -117,6 +120,9 @@ fun RootAndIslandSection(prefs: AppPreferences, showXmsfWorkaround: Boolean = tr
             DpSlider(stringResource(R.string.island_top_gap), topGap, 0..40) { scope.launch { prefs.setIslandTopGap(it) } }
             DpSlider(stringResource(R.string.island_below_cam), belowCam, 0..30) { scope.launch { prefs.setIslandBelowCam(it) } }
             DpSlider(stringResource(R.string.island_bottom_pad), bottomPad, 0..48) { scope.launch { prefs.setIslandBottomPad(it) } }
+            DpSlider(stringResource(R.string.island_duration), duration, 3..20, " s") { scope.launch { prefs.setIslandDuration(it) } }
+            SwitchRow(stringResource(R.string.island_glow), stringResource(R.string.island_glow_desc), glowOn == 1) { scope.launch { prefs.setIslandGlow(it) } }
+            SwitchRow(stringResource(R.string.island_timer), stringResource(R.string.island_timer_desc), timerOn == 1) { scope.launch { prefs.setIslandTimer(it) } }
             DpSlider(stringResource(R.string.island_scale), scalePct, 70..150, "%") { scope.launch { prefs.setIslandScale(it) } }
             DpSlider(stringResource(R.string.island_radius), radius, 8..50) { scope.launch { prefs.setIslandRadius(it) } }
             Spacer(Modifier.height(6.dp))

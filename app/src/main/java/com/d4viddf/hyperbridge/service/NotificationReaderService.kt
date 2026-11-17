@@ -225,8 +225,9 @@ class NotificationReaderService : NotificationListenerService() {
         serviceScope.launch {
             kotlinx.coroutines.flow.combine(
                 preferences.islandMarginLeft, preferences.islandMarginRight, preferences.islandTopGap, preferences.islandBottomPad,
-                preferences.islandScale, preferences.islandRadius, preferences.islandBelowCam
-            ) { a -> com.d4viddf.hyperbridge.overlay.IslandLayout(a[0], a[1], a[2], a[3], a[4], a[5], a[6]) }
+                preferences.islandScale, preferences.islandRadius, preferences.islandBelowCam,
+                preferences.islandDuration, preferences.islandGlow, preferences.islandTimer
+            ) { a -> com.d4viddf.hyperbridge.overlay.IslandLayout(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8] == 1, a[9] == 1) }
                 .collectLatest { com.d4viddf.hyperbridge.overlay.GlassIslandOverlay.setLayout(it) }
         }
         serviceScope.launch { preferences.interceptAllApps.collectLatest { interceptAll = it } }
@@ -403,6 +404,7 @@ class NotificationReaderService : NotificationListenerService() {
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?, rankingMap: RankingMap?, reason: Int) {
         sbn?.let {
+            com.d4viddf.hyperbridge.overlay.GlassIslandOverlay.dismissCall(it.key)
             if (nativeIslands.remove(it.key)) {
                 updatePermanentIsland()
             }
@@ -1313,9 +1315,29 @@ class NotificationReaderService : NotificationListenerService() {
             val label = a.title?.toString().orEmpty()
             if (label.isBlank() || a.remoteInputs?.isNotEmpty() == true) null else label to pi
         }
+        val replyAction = (n.actions ?: emptyArray()).firstOrNull { a -> a.actionIntent != null && a.remoteInputs?.isNotEmpty() == true && a.remoteInputs.any { it.allowFreeFormInput } }
+        val reply = replyAction?.let {
+            com.d4viddf.hyperbridge.overlay.IslandReply(it.title?.toString().orEmpty().ifBlank { "Reply" }, it.actionIntent, it.remoteInputs)
+        }
+        // incoming / ongoing call: answer + decline buttons, like the preview in the engine settings
+        val isCall = n.category == Notification.CATEGORY_CALL || extras.containsKey("android.callType")
+        val callType = extras.getInt("android.callType", 0)
+        val call = if (isCall) {
+            val all = (n.actions ?: emptyArray()).filter { it.actionIntent != null }
+            fun find(rx: Regex) = all.firstOrNull { rx.containsMatchIn(it.title?.toString().orEmpty()) }?.actionIntent
+            val declineRx = Regex("decline|reject|dismiss|hang|end|refuse|cancel", RegexOption.IGNORE_CASE)
+            val answerRx = Regex("answer|accept|pick|video", RegexOption.IGNORE_CASE)
+            var decline = find(declineRx)
+            var answer = find(answerRx)
+            val incoming = callType == 1 || answer != null || (callType == 0 && all.size >= 2)
+            if (incoming && decline == null && all.size >= 2) decline = all.first().actionIntent
+            if (incoming && answer == null && all.size >= 2) answer = all.last().actionIntent
+            if (!incoming && decline == null) decline = all.firstOrNull()?.actionIntent
+            com.d4viddf.hyperbridge.overlay.IslandCall(decline, answer, incoming)
+        } else null
         com.d4viddf.hyperbridge.overlay.GlassIslandOverlay.show(
             this,
-            com.d4viddf.hyperbridge.overlay.IslandItem(sbn.key, getCachedAppLabel(sbn.packageName), title, text, icon, n.contentIntent, actions, sbn.postTime),
+            com.d4viddf.hyperbridge.overlay.IslandItem(sbn.key, getCachedAppLabel(sbn.packageName), title, text, icon, n.contentIntent, actions, sbn.postTime, call, reply),
         )
     }
 
