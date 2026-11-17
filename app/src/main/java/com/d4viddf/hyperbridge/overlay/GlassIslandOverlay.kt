@@ -410,7 +410,7 @@ object GlassIslandOverlay {
                 ) {
                     if (item != null) {
                         val off by androidx.compose.animation.core.animateDpAsState(
-                            if (item.media && !expanded) ((10f - winTopDp).coerceAtLeast(0f) / k).dp else 0.dp,
+                            if (item.media && !expanded) ((9.67f - winTopDp).coerceAtLeast(0f) / k).dp else 0.dp,
                             spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow), label = "off",
                         )
                         Box(Modifier.fillMaxWidth().padding(top = off), contentAlignment = Alignment.TopCenter) { IslandContent(item) }
@@ -442,7 +442,7 @@ object GlassIslandOverlay {
         val vis = visible
         val compact = item.media && !big
         val fullW = with(androidx.compose.ui.platform.LocalDensity.current) { winWpx.toDp() }
-        val compactW = 106.dp / (layout.scalePct / 100f) // same footprint as the HyperOS music pill
+        val compactW = 108.12.dp / (layout.scalePct / 100f) // 2% larger than the as the HyperOS music pill
         val animW by androidx.compose.animation.core.animateDpAsState(if (compact) compactW else fullW, spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow), label = "w")
         val widthMod = if (winWpx > 0) Modifier.width(animW) else Modifier.fillMaxWidth()
         LaunchedEffect(vis, item.key) {
@@ -611,7 +611,7 @@ object GlassIslandOverlay {
     private fun CompactMedia(item: IslandItem, topPad: Dp, accent: Color) {
         val k = layout.scalePct / 100f
         // measured off the HyperOS pill: about 106 x 33 dp, thumbnail left, level bars right, camera in the middle
-        Row(Modifier.fillMaxWidth().height(33.dp / k).padding(start = 9.dp / k, end = 10.dp / k), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().height(33.66.dp / k).padding(start = 9.dp / k, end = 10.dp / k), verticalAlignment = Alignment.CenterVertically) {
             val art = item.art ?: item.icon
             Box(Modifier.size(22.dp / k, 15.dp / k).clip(RoundedCornerShape(4.dp / k)).background(Color(0xFF2C2C2E)), contentAlignment = Alignment.Center) {
                 if (art != null) Image(art, null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
