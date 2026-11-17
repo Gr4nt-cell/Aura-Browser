@@ -1288,9 +1288,10 @@ class NotificationReaderService : NotificationListenerService() {
     private fun showOnGlassIsland(sbn: StatusBarNotification) {
         val n = sbn.notification
         if ((n.flags and Notification.FLAG_GROUP_SUMMARY) != 0) return
-        if ((n.flags and Notification.FLAG_ONGOING_EVENT) != 0 && n.category != Notification.CATEGORY_CALL) return
-        if (isJunkNotification(sbn)) return
         val extras = n.extras ?: return
+        val isMedia = n.category == Notification.CATEGORY_TRANSPORT || extras.containsKey("android.mediaSession")
+        if ((n.flags and Notification.FLAG_ONGOING_EVENT) != 0 && n.category != Notification.CATEGORY_CALL && !isMedia) return
+        if (isJunkNotification(sbn)) return
         val title = resolveTitle(sbn)
         val text = resolveText(extras)
         if (title.isBlank() && text.isBlank()) return
@@ -1310,11 +1311,16 @@ class NotificationReaderService : NotificationListenerService() {
                 ?: packageManager.getApplicationIcon(sbn.packageName)
             d.toBitmap(96, 96).asImageBitmap()
         }.getOrNull()
-        val actions = (n.actions ?: emptyArray()).mapNotNull { a ->
-            val pi = a.actionIntent ?: return@mapNotNull null
-            val label = a.title?.toString().orEmpty()
-            if (label.isBlank() || a.remoteInputs?.isNotEmpty() == true) null else label to pi
-        }
+        fun actionIcon(a: Notification.Action): androidx.compose.ui.graphics.ImageBitmap? = runCatching {
+            val pkgCtx = createPackageContext(sbn.packageName, 0)
+            a.getIcon()?.loadDrawable(pkgCtx)?.toBitmap(72, 72)?.asImageBitmap()
+        }.getOrNull()
+        val usable = (n.actions ?: emptyArray()).filter { a ->
+            a.actionIntent != null && a.remoteInputs.isNullOrEmpty() && (isMedia || !a.title.isNullOrBlank())
+        }.take(if (isMedia) 5 else 3)
+        val actions = usable.map { a -> a.title?.toString().orEmpty() to a.actionIntent }
+        val actionIcons = usable.map { actionIcon(it) }
+        val art = if (isMedia) runCatching { n.getLargeIcon()?.loadDrawable(this)?.toBitmap(160, 160)?.asImageBitmap() }.getOrNull() else null
         val replyAction = (n.actions ?: emptyArray()).firstOrNull { a -> a.actionIntent != null && a.remoteInputs?.isNotEmpty() == true && a.remoteInputs.any { it.allowFreeFormInput } }
         val reply = replyAction?.let {
             com.d4viddf.hyperbridge.overlay.IslandReply(it.title?.toString().orEmpty().ifBlank { "Reply" }, it.actionIntent, it.remoteInputs)
@@ -1337,7 +1343,7 @@ class NotificationReaderService : NotificationListenerService() {
         } else null
         com.d4viddf.hyperbridge.overlay.GlassIslandOverlay.show(
             this,
-            com.d4viddf.hyperbridge.overlay.IslandItem(sbn.key, getCachedAppLabel(sbn.packageName), title, text, icon, n.contentIntent, actions, sbn.postTime, call, reply),
+            com.d4viddf.hyperbridge.overlay.IslandItem(sbn.key, getCachedAppLabel(sbn.packageName), title, text, icon, n.contentIntent, actions, sbn.postTime, call, reply, actionIcons, isMedia, art),
         )
     }
 

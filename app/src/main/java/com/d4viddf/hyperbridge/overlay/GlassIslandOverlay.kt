@@ -37,6 +37,20 @@ import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Snooze
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -98,6 +112,9 @@ data class IslandItem(
     val whenMs: Long,
     val call: IslandCall? = null,
     val reply: IslandReply? = null,
+    val icons: List<ImageBitmap?> = emptyList(),
+    val media: Boolean = false,
+    val art: ImageBitmap? = null,
 )
 
 data class IslandCall(val decline: PendingIntent?, val answer: PendingIntent?, val incoming: Boolean)
@@ -369,6 +386,7 @@ object GlassIslandOverlay {
             }) {
                 when {
                     item.call != null -> CallCard(item, topPad)
+                    item.media -> MediaCard(item, topPad, accent)
                     !big -> SmallRow(item, topPad, ctxW)
                     else -> LargeCard(item, topPad, accent)
                 }
@@ -398,6 +416,88 @@ object GlassIslandOverlay {
                 style = TextStyle(color = Color.White.copy(alpha = 0.72f), fontSize = 13.sp),
                 modifier = Modifier.weight(1f),
             )
+        }
+    }
+
+    private fun iconFor(label: String): androidx.compose.ui.graphics.vector.ImageVector? {
+        val l = label.lowercase()
+        return when {
+            Regex("mark.*read|^read|done|complete").containsMatchIn(l) -> Icons.Filled.Check
+            Regex("archiv").containsMatchIn(l) -> Icons.Filled.Archive
+            Regex("delet|trash|remove").containsMatchIn(l) -> Icons.Filled.Delete
+            Regex("snooze|later|remind").containsMatchIn(l) -> Icons.Filled.Snooze
+            Regex("like|heart|thumb").containsMatchIn(l) -> Icons.Filled.ThumbUp
+            Regex("call|dial").containsMatchIn(l) -> Icons.Filled.Call
+            Regex("share").containsMatchIn(l) -> Icons.Filled.Share
+            Regex("open|view|show").containsMatchIn(l) -> Icons.AutoMirrored.Filled.OpenInNew
+            Regex("dismiss|close|cancel|stop").containsMatchIn(l) -> Icons.Filled.Close
+            Regex("pause").containsMatchIn(l) -> Icons.Filled.Pause
+            Regex("play|resume").containsMatchIn(l) -> Icons.Filled.PlayArrow
+            Regex("navigate|direction|map").containsMatchIn(l) -> Icons.Filled.Navigation
+            else -> null
+        }
+    }
+
+    @Composable
+    private fun ActionLabel(label: String, icon: ImageBitmap?, tint: Color) {
+        val vec = iconFor(label)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.padding(horizontal = 10.dp)) {
+            if (vec != null) androidx.compose.material3.Icon(vec, null, tint = tint, modifier = Modifier.size(19.dp))
+            else if (icon != null) Image(icon, null, Modifier.size(19.dp), colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(tint))
+            if (vec != null || icon != null) Spacer(Modifier.width(7.dp))
+            BasicText(label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(color = tint, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp))
+        }
+    }
+
+    @Composable
+    private fun EqBars(color: Color) {
+        val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "eq")
+        val hs = listOf(520, 380, 640, 450).mapIndexed { i, d ->
+            t.animateFloat(0.25f, 1f, androidx.compose.animation.core.infiniteRepeatable(tween(d, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse, androidx.compose.animation.core.StartOffset(i * 90)), label = "b$i")
+        }
+        Row(Modifier.height(22.dp), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.Bottom) {
+            hs.forEach { h -> Box(Modifier.width(3.5.dp).fillMaxHeight(h.value).clip(CircleShape).background(color)) }
+        }
+    }
+
+    @Composable
+    private fun MediaCard(item: IslandItem, topPad: Dp, accent: Color) {
+        Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = (layout.bottomPad * 100f / layout.scalePct).dp)) {
+            Spacer(Modifier.height(topPad + (layout.belowCam * 100f / layout.scalePct).dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF2C2C2E)), contentAlignment = Alignment.Center) {
+                    val art = item.art ?: item.icon
+                    if (art != null) Image(art, null, Modifier.size(56.dp), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                    else androidx.compose.material3.Icon(Icons.Filled.MusicNote, null, tint = IosGray, modifier = Modifier.size(28.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    BasicText(item.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.3).sp))
+                    BasicText(item.text.ifBlank { item.appName }, maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(color = IosGray, fontSize = 15.sp, letterSpacing = (-0.2).sp))
+                }
+                Spacer(Modifier.width(10.dp))
+                EqBars(accent)
+            }
+            if (item.actions.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                    item.actions.forEachIndexed { i, (label, pi) ->
+                        val big = item.actions.size % 2 == 1 && i == item.actions.size / 2
+                        val ic = item.icons.getOrNull(i)
+                        val vec = iconFor(label)
+                        Box(
+                            Modifier.size(if (big) 56.dp else 48.dp).clip(CircleShape)
+                                .clickable { try { pi.send() } catch (_: Exception) {}; scheduleHide() },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            val sz = if (big) 36.dp else 28.dp
+                            if (ic != null) Image(ic, label, Modifier.size(sz), colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.White))
+                            else if (vec != null) androidx.compose.material3.Icon(vec, label, tint = Color.White, modifier = Modifier.size(sz))
+                            else BasicText(label.take(4), style = TextStyle(color = Color.White, fontSize = 12.sp))
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -464,16 +564,20 @@ object GlassIslandOverlay {
                                 .clickable { replying = true; hideJob?.cancel() },
                             contentAlignment = Alignment.Center,
                         ) {
-                            BasicText(reply.label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(color = onAccent, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.Reply, null, tint = onAccent, modifier = Modifier.size(19.dp))
+                                Spacer(Modifier.width(7.dp))
+                                BasicText(reply.label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(color = onAccent, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp))
+                            }
                         }
                     }
-                    item.actions.take(if (reply != null) 1 else 2).forEach { (label, pi) ->
+                    item.actions.take(if (reply != null) 1 else 2).forEachIndexed { i, (label, pi) ->
                         Box(
                             Modifier.weight(1f).height(44.dp).clip(CircleShape).background(IosFill)
                                 .clickable { try { pi.send() } catch (_: Exception) {}; hide() },
                             contentAlignment = Alignment.Center,
                         ) {
-                            BasicText(label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp), modifier = Modifier.padding(horizontal = 10.dp))
+                            ActionLabel(label, item.icons.getOrNull(i), Color.White)
                         }
                     }
                 }
