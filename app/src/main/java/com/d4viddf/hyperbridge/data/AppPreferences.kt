@@ -478,12 +478,12 @@ class AppPreferences(context: Context) {
     val islandTopGap: Flow<Int> = dao.getSettingFlow("island_top_gap").map { it?.toIntOrNull() ?: 2 }
     val islandBottomPad: Flow<Int> = dao.getSettingFlow("island_bottom_pad").map { it?.toIntOrNull() ?: 16 }
     val islandScale: Flow<Int> = dao.getSettingFlow("island_scale").map { it?.toIntOrNull() ?: 100 }
-    val islandRadius: Flow<Int> = dao.getSettingFlow("island_radius").map { it?.toIntOrNull() ?: 34 }
+    val islandRadius: Flow<Int> = dao.getSettingFlow("island_radius").map { it?.toIntOrNull() ?: 44 }
     val islandBelowCam: Flow<Int> = dao.getSettingFlow("island_below_cam").map { it?.toIntOrNull() ?: 2 }
     suspend fun setIslandBelowCam(v: Int) = save("island_below_cam", v.toString())
     val islandDuration: Flow<Int> = dao.getSettingFlow("island_duration").map { it?.toIntOrNull() ?: 6 }
     val islandGlow: Flow<Int> = dao.getSettingFlow("island_glow").map { it?.toIntOrNull() ?: 1 }
-    val islandTimer: Flow<Int> = dao.getSettingFlow("island_timer").map { it?.toIntOrNull() ?: 1 }
+    val islandTimer: Flow<Int> = dao.getSettingFlow("island_timer").map { it?.toIntOrNull() ?: 0 }
     suspend fun setIslandDuration(v: Int) = save("island_duration", v.toString())
     suspend fun setIslandGlow(v: Boolean) = save("island_glow", if (v) "1" else "0")
     suspend fun setIslandTimer(v: Boolean) = save("island_timer", if (v) "1" else "0")

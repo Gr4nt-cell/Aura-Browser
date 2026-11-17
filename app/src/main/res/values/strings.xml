@@ -826,8 +826,8 @@
     <string name="island_radius">Corner roundness</string>
     <string name="island_below_cam">Space between camera and content</string>
     <string name="island_duration">Show time</string>
-    <string name="island_glow">Accent glow</string>
-    <string name="island_glow_desc">Tints the island with the colour of the app icon.</string>
+    <string name="island_glow">Tinted outline</string>
+    <string name="island_glow_desc">Hairline outline in the colour of the app, like iOS.</string>
     <string name="island_timer">Countdown line</string>
     <string name="island_timer_desc">A thin line that shrinks until the island closes.</string>
 </resources>

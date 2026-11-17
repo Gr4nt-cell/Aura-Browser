@@ -77,11 +77,11 @@ fun RootAndIslandSection(prefs: AppPreferences, showXmsfWorkaround: Boolean = tr
     val topGap by prefs.islandTopGap.collectAsState(initial = 2)
     val bottomPad by prefs.islandBottomPad.collectAsState(initial = 16)
     val scalePct by prefs.islandScale.collectAsState(initial = 100)
-    val radius by prefs.islandRadius.collectAsState(initial = 34)
+    val radius by prefs.islandRadius.collectAsState(initial = 44)
     val belowCam by prefs.islandBelowCam.collectAsState(initial = 2)
     val duration by prefs.islandDuration.collectAsState(initial = 6)
     val glowOn by prefs.islandGlow.collectAsState(initial = 1)
-    val timerOn by prefs.islandTimer.collectAsState(initial = 1)
+    val timerOn by prefs.islandTimer.collectAsState(initial = 0)
 
     Column(Modifier.fillMaxWidth()) {
         // --- root status
