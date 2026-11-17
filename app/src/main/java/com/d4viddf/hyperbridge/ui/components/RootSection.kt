@@ -77,7 +77,10 @@ fun RootAndIslandSection(prefs: AppPreferences, showXmsfWorkaround: Boolean = tr
     val topGap by prefs.islandTopGap.collectAsState(initial = 2)
     val bottomPad by prefs.islandBottomPad.collectAsState(initial = 16)
     val scalePct by prefs.islandScale.collectAsState(initial = 100)
-    val radius by prefs.islandRadius.collectAsState(initial = 44)
+    val radius by prefs.islandRadiusTL.collectAsState(initial = 44)
+    val radiusTR by prefs.islandRadiusTR.collectAsState(initial = 44)
+    val radiusBL by prefs.islandRadiusBL.collectAsState(initial = 44)
+    val radiusBR by prefs.islandRadiusBR.collectAsState(initial = 44)
     val belowCam by prefs.islandBelowCam.collectAsState(initial = 2)
     val duration by prefs.islandDuration.collectAsState(initial = 6)
     val glowOn by prefs.islandGlow.collectAsState(initial = 1)
@@ -124,7 +127,10 @@ fun RootAndIslandSection(prefs: AppPreferences, showXmsfWorkaround: Boolean = tr
             SwitchRow(stringResource(R.string.island_glow), stringResource(R.string.island_glow_desc), glowOn == 1) { scope.launch { prefs.setIslandGlow(it) } }
             SwitchRow(stringResource(R.string.island_timer), stringResource(R.string.island_timer_desc), timerOn == 1) { scope.launch { prefs.setIslandTimer(it) } }
             DpSlider(stringResource(R.string.island_scale), scalePct, 70..150, "%") { scope.launch { prefs.setIslandScale(it) } }
-            DpSlider(stringResource(R.string.island_radius), radius, 8..50) { scope.launch { prefs.setIslandRadius(it) } }
+            DpSlider(stringResource(R.string.island_radius_tl), radius, 0..60) { scope.launch { prefs.setIslandRadius(it) } }
+            DpSlider(stringResource(R.string.island_radius_tr), radiusTR, 0..60) { scope.launch { prefs.setIslandRadiusTR(it) } }
+            DpSlider(stringResource(R.string.island_radius_bl), radiusBL, 0..60) { scope.launch { prefs.setIslandRadiusBL(it) } }
+            DpSlider(stringResource(R.string.island_radius_br), radiusBR, 0..60) { scope.launch { prefs.setIslandRadiusBR(it) } }
             Spacer(Modifier.height(6.dp))
             Button(
                 onClick = {

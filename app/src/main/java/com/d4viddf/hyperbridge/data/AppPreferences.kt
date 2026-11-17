@@ -478,6 +478,13 @@ class AppPreferences(context: Context) {
     val islandTopGap: Flow<Int> = dao.getSettingFlow("island_top_gap").map { it?.toIntOrNull() ?: 2 }
     val islandBottomPad: Flow<Int> = dao.getSettingFlow("island_bottom_pad").map { it?.toIntOrNull() ?: 16 }
     val islandScale: Flow<Int> = dao.getSettingFlow("island_scale").map { it?.toIntOrNull() ?: 100 }
+    val islandRadiusTL: Flow<Int> = dao.getSettingFlow("island_radius").map { it?.toIntOrNull() ?: 44 }
+    val islandRadiusTR: Flow<Int> = dao.getSettingFlow("island_r_tr").map { it?.toIntOrNull() ?: 44 }
+    val islandRadiusBL: Flow<Int> = dao.getSettingFlow("island_r_bl").map { it?.toIntOrNull() ?: 44 }
+    val islandRadiusBR: Flow<Int> = dao.getSettingFlow("island_r_br").map { it?.toIntOrNull() ?: 44 }
+    suspend fun setIslandRadiusTR(v: Int) = save("island_r_tr", v.toString())
+    suspend fun setIslandRadiusBL(v: Int) = save("island_r_bl", v.toString())
+    suspend fun setIslandRadiusBR(v: Int) = save("island_r_br", v.toString())
     val islandRadius: Flow<Int> = dao.getSettingFlow("island_radius").map { it?.toIntOrNull() ?: 44 }
     val islandBelowCam: Flow<Int> = dao.getSettingFlow("island_below_cam").map { it?.toIntOrNull() ?: 2 }
     suspend fun setIslandBelowCam(v: Int) = save("island_below_cam", v.toString())

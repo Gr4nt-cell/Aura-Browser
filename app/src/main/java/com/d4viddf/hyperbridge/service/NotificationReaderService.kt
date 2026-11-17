@@ -225,9 +225,10 @@ class NotificationReaderService : NotificationListenerService() {
         serviceScope.launch {
             kotlinx.coroutines.flow.combine(
                 preferences.islandMarginLeft, preferences.islandMarginRight, preferences.islandTopGap, preferences.islandBottomPad,
-                preferences.islandScale, preferences.islandRadius, preferences.islandBelowCam,
-                preferences.islandDuration, preferences.islandGlow, preferences.islandTimer
-            ) { a -> com.d4viddf.hyperbridge.overlay.IslandLayout(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8] == 1, a[9] == 1) }
+                preferences.islandScale, preferences.islandRadiusTL, preferences.islandBelowCam,
+                preferences.islandDuration, preferences.islandGlow, preferences.islandTimer,
+                preferences.islandRadiusTR, preferences.islandRadiusBL, preferences.islandRadiusBR
+            ) { a -> com.d4viddf.hyperbridge.overlay.IslandLayout(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8] == 1, a[9] == 1, a[10], a[11], a[12]) }
                 .collectLatest { com.d4viddf.hyperbridge.overlay.GlassIslandOverlay.setLayout(it) }
         }
         serviceScope.launch { preferences.interceptAllApps.collectLatest { interceptAll = it } }
@@ -1285,16 +1286,58 @@ class NotificationReaderService : NotificationListenerService() {
 
     private fun overlayActive() = overlayEnabled && com.d4viddf.hyperbridge.overlay.GlassIslandOverlay.canDraw(this)
 
-    private fun showOnGlassIsland(sbn: StatusBarNotification) {
+    /**
+     * Android 15+ hides one-time-code notifications from listeners (title becomes the app name, text is blank).
+     * With root we read the real text from `dumpsys notification --noredact` instead.
+     */
+    private fun dumpNotificationText(key: String): Pair<String, String>? {
+        val r = com.d4viddf.hyperbridge.util.RootManager.exec("dumpsys notification --noredact", 8)
+        if (r.code != 0) return null
+        val out = r.out
+        val i = out.indexOf("key=$key")
+        if (i < 0) return null
+        val j = out.indexOf("NotificationRecord(", i + 1).let { if (it < 0) out.length else it }
+        val chunk = out.substring(i, j)
+        fun field(name: String): String? =
+            Regex("android\\.$name=\\w+ \\((.*?)\\)\\s*\\n\\s*(?:android\\.|\\w+=|\\})", RegexOption.DOT_MATCHES_ALL)
+                .find(chunk)?.groupValues?.get(1)?.trim()?.takeIf { it.isNotBlank() }
+        val title = field("title") ?: ""
+        val text = field("bigText") ?: field("text") ?: ""
+        return if (title.isBlank() && text.isBlank()) null else title to text
+    }
+
+    private fun showOnGlassIsland(sbn: StatusBarNotification, recovered: Pair<String, String>? = null) {
         val n = sbn.notification
         if ((n.flags and Notification.FLAG_GROUP_SUMMARY) != 0) return
         val extras = n.extras ?: return
         val isMedia = n.category == Notification.CATEGORY_TRANSPORT || extras.containsKey("android.mediaSession")
         if ((n.flags and Notification.FLAG_ONGOING_EVENT) != 0 && n.category != Notification.CATEGORY_CALL && !isMedia) return
         if (isJunkNotification(sbn)) return
-        val title = resolveTitle(sbn)
-        val text = resolveText(extras)
+        var title = resolveTitle(sbn)
+        var text = resolveText(extras)
+        if (text.isBlank()) {
+            val alt = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)?.lastOrNull()?.toString()
+                ?: extras.getCharSequence(Notification.EXTRA_SUMMARY_TEXT)?.toString()
+                ?: extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()
+                ?: n.tickerText?.toString()
+            if (!alt.isNullOrBlank()) text = alt.trim()
+        }
+        val label = getCachedAppLabel(sbn.packageName)
+        val redacted = text.isBlank() && (title.isBlank() || title.equals(label, ignoreCase = true))
+        if (redacted) {
+            if (recovered == null && com.d4viddf.hyperbridge.util.RootManager.hasRoot.value) {
+                serviceScope.launch(Dispatchers.IO) { showOnGlassIsland(sbn, dumpNotificationText(sbn.key) ?: ("" to "")) }
+                return
+            }
+            if (recovered != null) {
+                if (recovered.first.isNotBlank()) title = recovered.first
+                if (recovered.second.isNotBlank()) text = recovered.second
+            }
+            if (text.isBlank()) text = "Content hidden by Android"
+        }
         if (title.isBlank() && text.isBlank()) return
+        val code = if (Regex("code|otp|verif|passcode|\\bpin\\b|one.time", RegexOption.IGNORE_CASE).containsMatchIn(text))
+            Regex("(?<!\\d)\\d{4,8}(?!\\d)").find(text)?.value else null
         val appBlocked = runCatching { kotlinx.coroutines.runBlocking { preferences.getAppBlockedTermsSync(sbn.packageName) } }.getOrDefault(emptySet())
         val content = "$title $text"
         if (appBlocked.any { t -> content.contains(t, ignoreCase = true) } || globalBlockedTerms.any { t -> content.contains(t, ignoreCase = true) }) return
@@ -1315,12 +1358,13 @@ class NotificationReaderService : NotificationListenerService() {
             val pkgCtx = createPackageContext(sbn.packageName, 0)
             a.getIcon()?.loadDrawable(pkgCtx)?.toBitmap(72, 72)?.asImageBitmap()
         }.getOrNull()
+        val isCallN = n.category == Notification.CATEGORY_CALL || extras.containsKey("android.callType")
         val usable = (n.actions ?: emptyArray()).filter { a ->
             a.actionIntent != null && a.remoteInputs.isNullOrEmpty() && (isMedia || !a.title.isNullOrBlank())
         }.take(if (isMedia) 5 else 3)
         val actions = usable.map { a -> a.title?.toString().orEmpty() to a.actionIntent }
         val actionIcons = usable.map { actionIcon(it) }
-        val art = if (isMedia) runCatching { n.getLargeIcon()?.loadDrawable(this)?.toBitmap(160, 160)?.asImageBitmap() }.getOrNull() else null
+        val art = if (isMedia || isCallN) runCatching { n.getLargeIcon()?.loadDrawable(this)?.toBitmap(160, 160)?.asImageBitmap() }.getOrNull() else null
         val replyAction = (n.actions ?: emptyArray()).firstOrNull { a -> a.actionIntent != null && a.remoteInputs?.isNotEmpty() == true && a.remoteInputs.any { it.allowFreeFormInput } }
         val reply = replyAction?.let {
             com.d4viddf.hyperbridge.overlay.IslandReply(it.title?.toString().orEmpty().ifBlank { "Reply" }, it.actionIntent, it.remoteInputs)
@@ -1343,7 +1387,7 @@ class NotificationReaderService : NotificationListenerService() {
         } else null
         com.d4viddf.hyperbridge.overlay.GlassIslandOverlay.show(
             this,
-            com.d4viddf.hyperbridge.overlay.IslandItem(sbn.key, getCachedAppLabel(sbn.packageName), title, text, icon, n.contentIntent, actions, sbn.postTime, call, reply, actionIcons, isMedia, art),
+            com.d4viddf.hyperbridge.overlay.IslandItem(sbn.key, getCachedAppLabel(sbn.packageName), title, text, icon, n.contentIntent, actions, sbn.postTime, call, reply, actionIcons, isMedia, art, code),
         )
     }
 

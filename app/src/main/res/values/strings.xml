@@ -830,4 +830,8 @@
     <string name="island_glow_desc">Hairline outline in the colour of the app, like iOS.</string>
     <string name="island_timer">Countdown line</string>
     <string name="island_timer_desc">A thin line that shrinks until the island closes.</string>
+    <string name="island_radius_tl">Corner: top left</string>
+    <string name="island_radius_tr">Corner: top right</string>
+    <string name="island_radius_bl">Corner: bottom left</string>
+    <string name="island_radius_br">Corner: bottom right</string>
 </resources>
