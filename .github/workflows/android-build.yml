@@ -72,19 +72,19 @@ jobs:
           "$BT/apksigner" verify --print-certs "$APK" | head -5
           "$BT/aapt2" dump badging "$APK" | grep -E "^package:|sdkVersion|targetSdkVersion|application-label:"
           ls -l "$APK"
-          cp "$APK" AuraBrowser-2.5.apk
-          cp app/build/outputs/bundle/release/app-release.aab AuraBrowser-2.5.aab
+          cp "$APK" AuraBrowser-2.6.apk
+          cp app/build/outputs/bundle/release/app-release.aab AuraBrowser-2.6.aab
 
       - uses: actions/upload-artifact@v4
         with:
-          name: AuraBrowser-2.5-apk
-          path: AuraBrowser-2.5.apk
+          name: AuraBrowser-2.6-apk
+          path: AuraBrowser-2.6.apk
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
-          name: AuraBrowser-2.5-aab
-          path: AuraBrowser-2.5.aab
+          name: AuraBrowser-2.6-aab
+          path: AuraBrowser-2.6.aab
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
