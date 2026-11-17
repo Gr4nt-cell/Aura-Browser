@@ -822,4 +822,6 @@
     <string name="island_top_gap">Gap above the camera</string>
     <string name="island_bottom_pad">Space under the content</string>
     <string name="island_preview">Preview island</string>
+    <string name="island_scale">Island size (text and content)</string>
+    <string name="island_radius">Corner roundness</string>
 </resources>

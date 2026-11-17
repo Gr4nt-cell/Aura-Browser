@@ -224,8 +224,9 @@ class NotificationReaderService : NotificationListenerService() {
         serviceScope.launch { preferences.overlayIslandEnabled.collectLatest { overlayEnabled = it } }
         serviceScope.launch {
             kotlinx.coroutines.flow.combine(
-                preferences.islandMarginLeft, preferences.islandMarginRight, preferences.islandTopGap, preferences.islandBottomPad
-            ) { l, r, t, b -> com.d4viddf.hyperbridge.overlay.IslandLayout(l, r, t, b) }
+                preferences.islandMarginLeft, preferences.islandMarginRight, preferences.islandTopGap, preferences.islandBottomPad,
+                preferences.islandScale, preferences.islandRadius
+            ) { a -> com.d4viddf.hyperbridge.overlay.IslandLayout(a[0], a[1], a[2], a[3], a[4], a[5]) }
                 .collectLatest { com.d4viddf.hyperbridge.overlay.GlassIslandOverlay.setLayout(it) }
         }
         serviceScope.launch { preferences.interceptAllApps.collectLatest { interceptAll = it } }

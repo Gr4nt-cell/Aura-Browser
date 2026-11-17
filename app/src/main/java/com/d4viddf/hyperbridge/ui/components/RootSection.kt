@@ -45,12 +45,12 @@ private fun SwitchRow(title: String, desc: String, checked: Boolean, enabled: Bo
 }
 
 @Composable
-private fun DpSlider(label: String, value: Int, range: IntRange, onChange: (Int) -> Unit) {
+private fun DpSlider(label: String, value: Int, range: IntRange, unit: String = " dp", onChange: (Int) -> Unit) {
     var local by androidx.compose.runtime.remember(value) { androidx.compose.runtime.mutableFloatStateOf(value.toFloat()) }
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, style = MaterialTheme.typography.bodyMedium)
-            Text("${local.toInt()} dp", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+            Text("${local.toInt()}$unit", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
         }
         androidx.compose.material3.Slider(
             value = local,
@@ -76,6 +76,8 @@ fun RootAndIslandSection(prefs: AppPreferences, showXmsfWorkaround: Boolean = tr
     val mRight by prefs.islandMarginRight.collectAsState(initial = 10)
     val topGap by prefs.islandTopGap.collectAsState(initial = 2)
     val bottomPad by prefs.islandBottomPad.collectAsState(initial = 16)
+    val scalePct by prefs.islandScale.collectAsState(initial = 100)
+    val radius by prefs.islandRadius.collectAsState(initial = 34)
 
     Column(Modifier.fillMaxWidth()) {
         // --- root status
@@ -113,6 +115,8 @@ fun RootAndIslandSection(prefs: AppPreferences, showXmsfWorkaround: Boolean = tr
             DpSlider(stringResource(R.string.island_margin_right), mRight, 0..60) { scope.launch { prefs.setIslandMarginRight(it) } }
             DpSlider(stringResource(R.string.island_top_gap), topGap, 0..24) { scope.launch { prefs.setIslandTopGap(it) } }
             DpSlider(stringResource(R.string.island_bottom_pad), bottomPad, 0..48) { scope.launch { prefs.setIslandBottomPad(it) } }
+            DpSlider(stringResource(R.string.island_scale), scalePct, 70..150, "%") { scope.launch { prefs.setIslandScale(it) } }
+            DpSlider(stringResource(R.string.island_radius), radius, 8..50) { scope.launch { prefs.setIslandRadius(it) } }
             Spacer(Modifier.height(6.dp))
             Button(
                 onClick = {

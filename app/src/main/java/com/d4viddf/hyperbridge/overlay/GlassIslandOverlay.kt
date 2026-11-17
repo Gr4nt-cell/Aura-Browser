@@ -102,7 +102,7 @@ private class OverlayOwner : LifecycleOwner, SavedStateRegistryOwner, ViewModelS
  * camera cut-out, so the island always wraps the camera: a one-row pill ("small expanded") that grows into a larger
  * rounded card ("large expanded") when tapped.
  */
-data class IslandLayout(val left: Int = 10, val right: Int = 10, val topGap: Int = 2, val bottomPad: Int = 16)
+data class IslandLayout(val left: Int = 10, val right: Int = 10, val topGap: Int = 2, val bottomPad: Int = 16, val scalePct: Int = 100, val radius: Int = 34)
 
 object GlassIslandOverlay {
     private var layout = IslandLayout()
@@ -215,7 +215,11 @@ object GlassIslandOverlay {
             setViewTreeViewModelStoreOwner(o)
             setContent {
                 val item = current
-                if (item != null) IslandContent(item)
+                val base = androidx.compose.ui.platform.LocalDensity.current
+                val k = layout.scalePct / 100f
+                androidx.compose.runtime.CompositionLocalProvider(
+                    androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(base.density * k, base.fontScale)
+                ) { if (item != null) IslandContent(item) }
             }
         }
         view = cv
@@ -237,8 +241,8 @@ object GlassIslandOverlay {
     private fun IslandContent(item: IslandItem) {
         val big = expanded
         val ctxW = cutoutW
-        val topPad = if (cutoutH > 0.dp) cutoutH else 18.dp
-        val shape = RoundedCornerShape(if (big) 34.dp else 26.dp)
+        val topPad = (if (cutoutH > 0.dp) cutoutH else 18.dp) / (layout.scalePct / 100f)
+        val shape = RoundedCornerShape(layout.radius.dp)
         val vis = visible
         LaunchedEffect(vis, item.key) {
             if (vis) {
@@ -266,7 +270,7 @@ object GlassIslandOverlay {
                 .animateContentSize(spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow))
                 .shadow(18.dp, shape, ambientColor = Color.Black.copy(alpha = 0.35f), spotColor = Color.Black.copy(alpha = 0.5f))
                 .clip(shape)
-                .background(Brush.verticalGradient(listOf(Color(0xF2121217), Color(0xE60A0A0E))))
+                .background(Color(0xFF0B0B0F))
                 .pointerInput(item.key) {
                     detectVerticalDragGestures(
                         onDragEnd = { if (drag < -40f) hide() else drag = 0f },
@@ -280,7 +284,7 @@ object GlassIslandOverlay {
         ) {
             // glass sheen + rim
             Canvas(Modifier.matchParentSize()) {
-                drawRect(Brush.linearGradient(listOf(Color.White.copy(alpha = 0.16f), Color.Transparent, Color.White.copy(alpha = 0.05f)), Offset.Zero, Offset(size.width, size.height)))
+                drawRect(Brush.linearGradient(listOf(Color.White.copy(alpha = 0.07f), Color.Transparent, Color.White.copy(alpha = 0.02f)), Offset.Zero, Offset(size.width, size.height)))
             }
             Box(Modifier.matchParentSize().border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.45f), Color.White.copy(alpha = 0.06f), Color.White.copy(alpha = 0.22f))), shape))
 
@@ -312,7 +316,7 @@ object GlassIslandOverlay {
 
     @Composable
     private fun LargeCard(item: IslandItem, topPad: Dp) {
-        Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = layout.bottomPad.dp)) {
+        Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = (layout.bottomPad * 100f / layout.scalePct).dp)) {
             Spacer(Modifier.height(topPad + 8.dp)) // camera zone
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AppIcon(item.icon, 34.dp)

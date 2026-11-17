@@ -14,6 +14,7 @@ android {
     defaultConfig {
         applicationId = "com.d4viddf.hyperbridge"
         minSdk = 35
+        ndk { abiFilters += listOf("arm64-v8a") }
         targetSdk = 37
         versionCode = 33
         versionName = "0.5.7"
