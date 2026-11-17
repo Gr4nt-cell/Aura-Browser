@@ -48,6 +48,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Archive
@@ -523,11 +524,16 @@ object GlassIslandOverlay {
             }) {
                 when {
                     item.call != null -> CallCard(item, topPad)
-                    item.media -> androidx.compose.animation.AnimatedContent(
-                        targetState = big,
-                        transitionSpec = { androidx.compose.animation.fadeIn(tween(260, delayMillis = 110)) togetherWith androidx.compose.animation.fadeOut(tween(120)) },
-                        label = "media",
-                    ) { b -> if (b) MediaCard(item, topPad, accent) else CompactMedia(item, topPad, accent) }
+                    item.media -> {
+                        // pill <-> card: both are laid out at their own fixed width while the shell grows or shrinks around
+                        // them, so neither is ever measured at a width it was not designed for
+                        val t = if (fullW > compactW) ((animW - compactW) / (fullW - compactW)).coerceIn(0f, 1f) else if (big) 1f else 0f
+                        if (t > 0.5f) {
+                            Box(Modifier.graphicsLayer { alpha = ((t - 0.5f) * 2f).coerceIn(0f, 1f) }.requiredWidth(fullW)) { MediaCard(item, topPad, accent) }
+                        } else {
+                            Box(Modifier.graphicsLayer { alpha = (1f - t * 2f).coerceIn(0f, 1f) }.requiredWidth(compactW)) { CompactMedia(item, topPad, accent) }
+                        }
+                    }
                     !big -> SmallRow(item, topPad, ctxW)
                     else -> LargeCard(item, topPad, accent)
                 }
