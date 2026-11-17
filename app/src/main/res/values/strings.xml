@@ -824,4 +824,5 @@
     <string name="island_preview">Preview island</string>
     <string name="island_scale">Island size (text and content)</string>
     <string name="island_radius">Corner roundness</string>
+    <string name="island_below_cam">Space between camera and content</string>
 </resources>

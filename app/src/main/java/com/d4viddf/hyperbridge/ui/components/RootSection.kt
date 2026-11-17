@@ -78,6 +78,7 @@ fun RootAndIslandSection(prefs: AppPreferences, showXmsfWorkaround: Boolean = tr
     val bottomPad by prefs.islandBottomPad.collectAsState(initial = 16)
     val scalePct by prefs.islandScale.collectAsState(initial = 100)
     val radius by prefs.islandRadius.collectAsState(initial = 34)
+    val belowCam by prefs.islandBelowCam.collectAsState(initial = 2)
 
     Column(Modifier.fillMaxWidth()) {
         // --- root status
@@ -113,7 +114,8 @@ fun RootAndIslandSection(prefs: AppPreferences, showXmsfWorkaround: Boolean = tr
             Spacer(Modifier.height(4.dp))
             DpSlider(stringResource(R.string.island_margin_left), mLeft, 0..60) { scope.launch { prefs.setIslandMarginLeft(it) } }
             DpSlider(stringResource(R.string.island_margin_right), mRight, 0..60) { scope.launch { prefs.setIslandMarginRight(it) } }
-            DpSlider(stringResource(R.string.island_top_gap), topGap, 0..24) { scope.launch { prefs.setIslandTopGap(it) } }
+            DpSlider(stringResource(R.string.island_top_gap), topGap, 0..40) { scope.launch { prefs.setIslandTopGap(it) } }
+            DpSlider(stringResource(R.string.island_below_cam), belowCam, 0..30) { scope.launch { prefs.setIslandBelowCam(it) } }
             DpSlider(stringResource(R.string.island_bottom_pad), bottomPad, 0..48) { scope.launch { prefs.setIslandBottomPad(it) } }
             DpSlider(stringResource(R.string.island_scale), scalePct, 70..150, "%") { scope.launch { prefs.setIslandScale(it) } }
             DpSlider(stringResource(R.string.island_radius), radius, 8..50) { scope.launch { prefs.setIslandRadius(it) } }

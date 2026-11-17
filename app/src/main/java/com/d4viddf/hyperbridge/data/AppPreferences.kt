@@ -479,6 +479,8 @@ class AppPreferences(context: Context) {
     val islandBottomPad: Flow<Int> = dao.getSettingFlow("island_bottom_pad").map { it?.toIntOrNull() ?: 16 }
     val islandScale: Flow<Int> = dao.getSettingFlow("island_scale").map { it?.toIntOrNull() ?: 100 }
     val islandRadius: Flow<Int> = dao.getSettingFlow("island_radius").map { it?.toIntOrNull() ?: 34 }
+    val islandBelowCam: Flow<Int> = dao.getSettingFlow("island_below_cam").map { it?.toIntOrNull() ?: 2 }
+    suspend fun setIslandBelowCam(v: Int) = save("island_below_cam", v.toString())
     suspend fun setIslandScale(v: Int) = save("island_scale", v.toString())
     suspend fun setIslandRadius(v: Int) = save("island_radius", v.toString())
     suspend fun setIslandMarginLeft(v: Int) = save("island_margin_left", v.toString())

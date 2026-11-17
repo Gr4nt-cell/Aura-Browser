@@ -102,7 +102,7 @@ private class OverlayOwner : LifecycleOwner, SavedStateRegistryOwner, ViewModelS
  * camera cut-out, so the island always wraps the camera: a one-row pill ("small expanded") that grows into a larger
  * rounded card ("large expanded") when tapped.
  */
-data class IslandLayout(val left: Int = 10, val right: Int = 10, val topGap: Int = 2, val bottomPad: Int = 16, val scalePct: Int = 100, val radius: Int = 34)
+data class IslandLayout(val left: Int = 10, val right: Int = 10, val topGap: Int = 2, val bottomPad: Int = 16, val scalePct: Int = 100, val radius: Int = 34, val belowCam: Int = 2)
 
 object GlassIslandOverlay {
     private var layout = IslandLayout()
@@ -180,7 +180,9 @@ object GlassIslandOverlay {
         if (top != null && !top.isEmpty) {
             cutoutW = (top.width() / density).dp
             // window starts 2dp above the camera so the card hugs it
-            winTopPx = maxOf(0, top.top - (layout.topGap * density).toInt())
+            // punch-hole cut-outs usually report a rect that starts at y=0, so estimate the real top of the camera
+            val camTop = if (top.top > 0) top.top else maxOf(0, top.bottom - top.width())
+            winTopPx = maxOf(0, camTop - (layout.topGap * density).toInt())
             cutoutH = ((top.bottom - winTopPx) / density).dp
         } else {
             // no notch reported: reserve the status-bar sized strip so content never sits under a punch-hole either
@@ -317,7 +319,7 @@ object GlassIslandOverlay {
     @Composable
     private fun LargeCard(item: IslandItem, topPad: Dp) {
         Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = (layout.bottomPad * 100f / layout.scalePct).dp)) {
-            Spacer(Modifier.height(topPad + 8.dp)) // camera zone
+            Spacer(Modifier.height(topPad + (layout.belowCam * 100f / layout.scalePct).dp)) // camera zone
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AppIcon(item.icon, 34.dp)
                 Spacer(Modifier.width(10.dp))
